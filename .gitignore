@@ -1,0 +1,15 @@
+#ignore debug release path
+/build-testGenerator-Desktop_Qt_5_9_1_MinGW_32bit-Release
+/build-testGenerator-Desktop_Qt_5_9_1_MinGW_32bit-Debug
+/build-testAnalyzer-Desktop_Qt_5_9_1_MinGW_32bit-Release
+/build-testAnalyzer-Desktop_Qt_5_9_1_MinGW_32bit-Debug
+/build-GrShell-Desktop_Qt_5_9_1_MinGW_32bit-Release
+/build-GrShell-Desktop_Qt_5_9_1_MinGW_32bit-Debug
+
+#ignore *.user, *.autosave
+/GrShell/*.user
+/GrShell/*.autosave
+/testAnalyzer/*.user
+/testAnalyzer/*.autosave
+/testGenerator/*.user
+/testGenerator/*.autosave
