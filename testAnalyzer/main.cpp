@@ -1,4 +1,5 @@
 #include <iostream>
+#include <istream>
 #include <visa.h>
 
 using namespace std;
@@ -34,30 +35,33 @@ int main()
 //    cout << data << endl;
 
     viPrintf(analyzer, "*IDN?\n");
-    cout << viScanf(analyzer, "%t", data);
-    cout << "data: " << data;
+    cout << viScanf(analyzer, "%t", data);  cout << "data: " << data;
+
+    status = viWrite(analyzer, (ViBuf)"*CLS\n", 5, retCnt); cout << status << endl;
+    status = viWrite(analyzer, (ViBuf)"*RST\n", 5, retCnt); cout << status << endl;
 
     string str;
-    cin >> str;
+    cout << "Start\n";
+    while (1) {
+        getline(cin, str);
+        if (str == "yaaa") break;
+        str+="\n";
+        status = viWrite(analyzer, (ViBuf)str.c_str(), str.size(), retCnt);
+        cout << "status: " << status << " str.size: " << str.size() << endl;
+    }
 
-    status = viWrite(analyzer, (ViBuf)"*CLS\n", 5, retCnt);
-    cout << status << endl;
-    status = viWrite(analyzer, (ViBuf)"*RST\n", 5, retCnt);
-    cout << status << endl;
+//    status = viWrite(analyzer, (ViBuf)"SYST:DISP:UPD OFF\n", 18, retCnt);
+//    cout << status << endl;
 
+//    cin >> str;
 
-    status = viWrite(analyzer, (ViBuf)"SYST:DISP:UPD OFF\n", 18, retCnt);
-    cout << status << endl;
+//    status = viWrite(analyzer, (ViBuf)"SYST:DISP:UPD ON\n", 17, retCnt);
+//    cout << status << endl;
 
-    cin >> str;
+//    status = viFlush(analyzer, VI_WRITE_BUF);
+//    cout << "Flush " << status << endl;
 
-    status = viWrite(analyzer, (ViBuf)"SYST:DISP:UPD ON\n", 17, retCnt);
-    cout << status << endl;
-
-    status = viFlush(analyzer, VI_WRITE_BUF);
-    cout << "Flush " << status << endl;
-
-    status = viWrite(analyzer, (ViBuf)"SYST:SHUT\n", 10, retCnt);
+//    status = viWrite(analyzer, (ViBuf)"SYST:SHUT\n", 10, retCnt);
     viClose(analyzer);
     viClose(defaultRM);
     return 0;
