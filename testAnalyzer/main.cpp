@@ -46,8 +46,16 @@ int main()
         getline(cin, str);
         if (str == "yaaa") break;
         str+="\n";
-        status = viWrite(analyzer, (ViBuf)str.c_str(), str.size(), retCnt);
-        cout << "status: " << status << " str.size: " << str.size() << endl;
+        if (str == "r\n") {
+            str.clear();
+            getline(cin, str);
+            str+="\n";
+            status = viScanf(analyzer, "%t", str);
+            cout << "status: " << status << " data: " << str << endl;
+        } else {
+            status = viWrite(analyzer, (ViBuf)str.c_str(), str.size(), retCnt);
+            cout << "status: " << status << " str.size: " << str.size() << endl;
+        }
     }
 
 //    status = viWrite(analyzer, (ViBuf)"SYST:DISP:UPD OFF\n", 18, retCnt);
