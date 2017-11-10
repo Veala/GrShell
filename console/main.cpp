@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <fstream>
-#include <conio.h>
 
 using namespace std;
 
@@ -53,22 +52,21 @@ int main(int argc, char* argv[])
         counter++;
         checkParameter(string(argv[counter]));
         if (checkedParam == "fail") {
-            cout << "Incorrect parameter: " << argv[counter] << "; use -m and/or -p" << endl;
+            cout << "Incorrect parameter: " << argv[counter] << endl;
             break;
         }
         counter++;
         if (counter>argc-1) {
-            cout << "Not parameter value specified: " << checkedParam.c_str() << endl << "-p, value: path to project" << endl << "-m, value: hand or auto" << endl;
+            cout << "Not parameter value specified: " << checkedParam.c_str() << endl;
             break;
         }
         if (!checkValue(string(argv[counter]))) {
-            cout << "Invalid parameter value: " << checkedParam.c_str() << endl << "-p, value: path to project" << endl << "-m, value: hand or auto" << endl;
+            cout << "Invalid parameter value: " << checkedParam.c_str() << endl;
             break;
         }
     }
 
-    cout << mode << endl;
-    cout << projStr << endl;
+
 
     return 0;
 }
