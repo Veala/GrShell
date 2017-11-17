@@ -1,0 +1,8 @@
+Project: sin
+-m auto
+
+-eretic -41
+Generator:
+ 
+-gVolt 5.0E-01
+ 
