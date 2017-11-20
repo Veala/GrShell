@@ -1,8 +1,14 @@
-Project: sin
+//Project: -m [hand or auto], hand is default
 -m auto
 
--eretic -41
-Generator:
- 
+//Generator:
 -gVolt 5.0E-01
- 
+-gFreq 160.0E+06
+
+//Signal:
+//Types: SIN, LFM, NOISE, RECTIMP
+-sType LFM
+-sFmin 10
+-sFmax 800
+-sTrast 0.000833
+

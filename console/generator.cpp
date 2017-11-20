@@ -5,6 +5,48 @@ generator::generator()
     generatorData["-gVOLT"] = "5.0E-01";
     generatorData["-gFREQ"] = "160.0E+06";
 
+    commands.push_back("getAllParam");
+    commands.push_back("commands");
+    commands.push_back("signal");
+    commands.push_back("start");
+    commands.push_back("exit");
+}
+
+void generator::exec()
+{
+    string command;
+    cout << "generator:";
+    while(getline(cin,command)) {
+        if (command == "") {
+            //cout << "=>";
+        } else if ((std::find(commands.begin(), commands.end(), command) == commands.end())) {
+            cout << command << " is not command" << endl;
+        } else if (command == "commands") {
+            for (std::list<string>::iterator it = commands.begin(); it!=commands.end(); ++it)
+                cout << *it << endl;
+        } else if (command == "exit") {
+            //code
+            break;
+        } else if (command == "getAllParam") {
+            for (std::map<string,string>::iterator it=generatorData.begin(); it!=generatorData.end(); ++it)
+                cout << "key: " << it->first << "; value: " << it->second << endl;
+        } else if (command == "signal") {
+
+        } else if (command == "start") {
+            start();
+        }
+        cout << "generator:";
+    }
+}
+
+void generator::start()
+{
+
+}
+
+generator::~generator()
+{
+
 }
 
 string generator::signal::ScpiBlockPrefix(size_t blocklen)

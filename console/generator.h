@@ -6,7 +6,9 @@
 #include <math.h>
 #include <map>
 #include <visa.h>
+#include <list>
 #include <vector>
+#include <algorithm>
 
 using namespace std;
 
@@ -14,12 +16,15 @@ class generator
 {
 public:
     generator();
+    ~generator();
     map<string,string> generatorData;
-
+    void exec();
+    void start();
 
 protected:
 
 private:
+
     class signal
     {
     public:
@@ -53,6 +58,7 @@ private:
     };
 
     void setDefault();
+    list<string> commands;
 
 };
 
