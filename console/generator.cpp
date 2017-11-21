@@ -2,13 +2,19 @@
 
 generator::generator()
 {
-    generatorData["-gVOLT"] = "5.0E-01";
-    generatorData["-gFREQ"] = "160.0E+06";
+    //genData["-gVOLT"] = "5.0E-01";
+    //genData["-gFREQ"] = "160.0E+06";
 
-    commands.push_back("getAllParam");
-    commands.push_back("commands");
+    if (signal::sigData["-sType"] == "LFM")
+        sig = new signal_LFM();
+    if (signal::sigData["-sType"] == "SIN")
+        sig = new signal_SIN();
+    commands.push_back("getAllP");
+    commands.push_back("setP");
+    commands.push_back("delP");
     commands.push_back("signal");
     commands.push_back("start");
+    commands.push_back("commands");
     commands.push_back("exit");
 }
 
@@ -27,11 +33,24 @@ void generator::exec()
         } else if (command == "exit") {
             //code
             break;
-        } else if (command == "getAllParam") {
-            for (std::map<string,string>::iterator it=generatorData.begin(); it!=generatorData.end(); ++it)
+        } else if (command == "getAllP") {
+            for (std::map<string,string>::iterator it=genData.begin(); it!=genData.end(); ++it)
                 cout << "key: " << it->first << "; value: " << it->second << endl;
+        } else if (command == "setP") {
+            cout << "key:";
+            string key, value; getline(cin,key);
+            std::map<string,string>::iterator it = genData.find(key);
+            cout << "value:"; getline(cin,value);
+            genData[key] = value;
+            if (it == genData.end()) cout << "New 'key-value' added" << endl;
+        } else if (command == "delP") {
+            cout << "key:";
+            string key; getline(cin,key);
+            std::map<string,string>::iterator it = genData.find(key);
+            if (it == genData.end()) { cout << "Key not find" << endl; }
+            else { genData.erase(it); cout << "Key was delete" << endl; }
         } else if (command == "signal") {
-
+            sig->exec();
         } else if (command == "start") {
             start();
         }
@@ -41,12 +60,106 @@ void generator::exec()
 
 void generator::start()
 {
+    int error;
+    ViSession session, vi;
 
+    ViChar* resrc = "TCPIP0::localhost::hislip0::INSTR";
+    cout << "Open " << resrc << " ... ";
+    error = viOpenDefaultRM(&session);
+    error = viOpen(session, resrc, VI_NO_LOCK, 10000, &vi);
+    if (error != VI_SUCCESS)
+    {
+        viClose(session);
+        cout
+            << "failed!" << endl << endl
+            << "Make sure that the AgM8190Firmware Application is started: " << endl
+            << "  Start Menu -> Keysight M8190 -> Keysight M8190" << endl << endl
+            ;
+        //Sleep(5000); // milli seconds
+        //return 1;
+    }
+
+    // Query the instrument identity
+
+    error = viPrintf(vi, "*IDN?\n");
+    ViChar buffer[5000];
+    error = viScanf(vi, "%t", buffer);
+    cout << "*IDN? -> " << buffer << endl;
+
+    // Reset the instrument
+    cout << "Reset instrument and setup waveform ... " << endl << endl;
+    error = viPrintf(vi, "*RST\n");
+
+    error = viPrintf(vi, ":FREQuency:RASTer %s\n", genData.find("-gFREQ")->second);
+    error = viPrintf(vi, ":DAC:VOLTage %s\n", genData.find("-gVOLT")->second);
+    error = viPrintf(vi, ":DAC:VOLTage:OFFSet 0\n");
+    error = viPrintf(vi, ":OUTPut1:ROUTe DAC\n");
+
+    int sampleCount = 500 * 192;
+    sampleCount = 1536;
+    sig->GranularityCheck(sampleCount);
+
+    // Ensure instrument is stopped
+    error = viPrintf(vi, ":ABORt\n");
+
+    vector<ViByte> buffer1;
+
+
+}
+
+void generator::setSigData(string k, string v)
+{
+    signal::sigData[k] = v;
 }
 
 generator::~generator()
 {
+    delete sig;
+}
 
+generator::signal::signal()
+{
+    commands.push_back("getAllP");
+    commands.push_back("setP");
+    commands.push_back("delP");
+    commands.push_back("commands");
+    commands.push_back("exit");
+}
+
+void generator::signal::exec()
+{
+    string command;
+    cout << "signal:";
+    while(getline(cin,command)) {
+        if (command == "") {
+            //cout << "=>";
+        } else if ((std::find(commands.begin(), commands.end(), command) == commands.end())) {
+            cout << command << " is not command" << endl;
+        } else if (command == "commands") {
+            for (std::list<string>::iterator it = commands.begin(); it!=commands.end(); ++it)
+                cout << *it << endl;
+        } else if (command == "exit") {
+            //code
+            break;
+        } else if (command == "getAllP") {
+            for (std::map<string,string>::iterator it=sigData.begin(); it!=sigData.end(); ++it)
+                cout << "key: " << it->first << "; value: " << it->second << endl;
+        } else if (command == "setP") {
+            cout << "key:";
+            string key, value; getline(cin,key);
+            std::map<string,string>::iterator it = sigData.find(key);
+            cout << "value:"; getline(cin,value);
+            sigData[key] = value;
+            if (it == sigData.end()) cout << "new 'key-value' added" << endl;
+        } else if (command == "delP") {
+            cout << "key:";
+            string key; getline(cin,key);
+            std::map<string,string>::iterator it = sigData.find(key);
+            if (it == sigData.end()) { cout << "Key not find" << endl; }
+            else { sigData.erase(it); cout << "Key was delete" << endl; }
+        }
+        cout << "signal:";
+    }
 }
 
 string generator::signal::ScpiBlockPrefix(size_t blocklen)

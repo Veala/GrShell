@@ -17,24 +17,27 @@ class generator
 public:
     generator();
     ~generator();
-    map<string,string> generatorData;
+    static map<string,string> genData;
+    static void setSigData(string k,string v);
     void exec();
     void start();
 
 protected:
 
 private:
-
     class signal
     {
     public:
-        signal() {}
-        map<string,string> signalData;
+        signal();
+        virtual ~signal() { };
+        static map<string,string> sigData;
+        void exec();
     protected:
         virtual void GenerateWaveformCommands(int& sampleCount, vector<ViByte>& buffer1) = 0;
         string ScpiBlockPrefix(size_t blocklen);
         void GranularityCheck(int& sampleCount);
     private:
+        list<string> commands;
 
     };
 
@@ -42,6 +45,7 @@ private:
     {
     public:
         signal_SIN() : signal() {}
+        ~signal_SIN() { };
     protected:
         void GenerateWaveformCommands(int &sampleCount, vector<ViByte> &buffer1);
     private:
@@ -52,6 +56,7 @@ private:
     {
     public:
         signal_LFM() : signal() {}
+        ~signal_LFM() { };
     protected:
         void GenerateWaveformCommands(int &sampleCount, vector<ViByte> &buffer1);
 
@@ -60,6 +65,8 @@ private:
     void setDefault();
     list<string> commands;
 
+public:
+    signal *sig;
 };
 
 #endif // GENERATOR_H

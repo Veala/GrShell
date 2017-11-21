@@ -4,7 +4,11 @@
 using namespace std;
 
 ifstream projFile;
-map<string,string> allData;
+map<string,string> proData;
+map<string,string> generator::genData;
+map<string,string> generator::signal::sigData;
+//map<string,string> anaData;
+//map<string,string> oscData;
 list<string> commands;
 
 int main(int argc, char* argv[])
@@ -18,6 +22,7 @@ int main(int argc, char* argv[])
 
         string k,v;
         char c;
+
         while (projFile.get(c)) {
             projFile.unget();
             if (c != '-') {
@@ -26,18 +31,24 @@ int main(int argc, char* argv[])
             }
             getline(projFile, k, ' ');
             getline(projFile, v, '\n');
-            allData[k] = v;
+            if (k.at(1) == 'p')
+                proData[k] = v;
+            else if (k.at(1) == 'g')
+                generator::genData[k] = v;
+            else if (k.at(1) == 's')
+                generator::setSigData(k, v);
         }
         projFile.close();
     }
 
-    commands.push_back("getAllParam");
-    commands.push_back("commands");
-    commands.push_back("testType");
+    commands.push_back("getAllP");
+    commands.push_back("setP");
+    commands.push_back("delP");
     commands.push_back("generator");
     commands.push_back("analyzer");
     commands.push_back("oscilloscope");
     commands.push_back("start");
+    commands.push_back("commands");
     commands.push_back("exit");
 
     generator gen;
@@ -55,13 +66,24 @@ int main(int argc, char* argv[])
         } else if (command == "exit") {
             //code
             break;
-        } else if (command == "getAllParam") {
-            for (std::map<string,string>::iterator it=allData.begin(); it!=allData.end(); ++it)
+        } else if (command == "getAllP") {
+            for (std::map<string,string>::iterator it=proData.begin(); it!=proData.end(); ++it)
                 cout << "key: " << it->first << "; value: " << it->second << endl;
+        } else if (command == "setP") {
+            cout << "key:";
+            string key, value; getline(cin,key);
+            std::map<string,string>::iterator it = proData.find(key);
+            cout << "value:"; getline(cin,value);
+            proData[key] = value;
+            if (it == proData.end()) cout << "new 'key-value' added" << endl;
+        } else if (command == "delP") {
+            cout << "key:";
+            string key; getline(cin,key);
+            std::map<string,string>::iterator it = proData.find(key);
+            if (it == proData.end()) { cout << "Key not find" << endl; }
+            else { proData.erase(it); cout << "Key was delete" << endl; }
         } else if (command == "generator") {
             gen.exec();
-        } else if (command == "signal") {
-
         } else if (command == "analyzer") {
 
         } else if (command == "oscilloscope") {
