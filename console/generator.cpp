@@ -9,6 +9,7 @@ generator::generator()
         sig = new signal_LFM();
     if (signal::sigData["-sType"] == "SIN")
         sig = new signal_SIN();
+    sig->isChangeSigP = &stateGen.isChangeSigP;
     commands.push_back("getAllP");
     commands.push_back("setP");
     commands.push_back("delP");
@@ -18,7 +19,7 @@ generator::generator()
     commands.push_back("exit");
 }
 
-void generator::exec()
+void generator::execShell()
 {
     string command;
     cout << "generator:";
@@ -43,14 +44,15 @@ void generator::exec()
             cout << "value:"; getline(cin,value);
             genData[key] = value;
             if (it == genData.end()) cout << "New 'key-value' added" << endl;
+            stateGen.isChangeGenP = 1;
         } else if (command == "delP") {
             cout << "key:";
             string key; getline(cin,key);
             std::map<string,string>::iterator it = genData.find(key);
             if (it == genData.end()) { cout << "Key not find" << endl; }
-            else { genData.erase(it); cout << "Key was delete" << endl; }
+            else { genData.erase(it); cout << "Key was delete" << endl; stateGen.isChangeGenP = 1; }
         } else if (command == "signal") {
-            sig->exec();
+            sig->execShell();
         } else if (command == "start") {
             start();
         }
@@ -60,10 +62,78 @@ void generator::exec()
 
 void generator::start()
 {
-    int error;
-    ViSession session, vi;
+    if(stateGen.isOpenSes)
+        if (openSession()) return; else { stateGen.isOpenSes=0; stateGen.isCloseSes=1; }
 
-    ViChar* resrc = "TCPIP0::localhost::hislip0::INSTR";
+    // Query the instrument identity
+    error = viPrintf(vi, "*IDN?\n");
+    ViChar buffer[5000];
+    error = viScanf(vi, "%t", buffer);
+    cout << "*IDN? -> " << buffer << endl;
+
+    if(stateGen.isChangeSigP || stateGen.isChangeGenP) {
+        cout << "abort" << endl;
+        error = viPrintf(vi, ":ABORt\n");
+        stateGen.isAborted = 1;
+    }
+//    if(stateGen.isChangeSigP) {
+//        //cout << "Reset instrument and setup waveform ... " << endl << endl;
+//        error = viPrintf(vi, "*RST\n");
+//    }
+    if(stateGen.isChangeGenP) {
+        cout << "isChangeGenP" << endl;
+        cout << genData.find("-gVolt")->second.c_str() << endl;
+        error = viPrintf(vi, ":FREQuency:RASTer %s\n", genData.find("-gFreq")->second.c_str());
+        error = viPrintf(vi, ":DAC:VOLTage %s\n", genData.find("-gVolt")->second.c_str());
+        error = viPrintf(vi, ":DAC:VOLTage:OFFSet 0\n");
+        error = viPrintf(vi, ":OUTPut1:ROUTe DAC\n");
+        stateGen.isChangeGenP = 0;
+    }
+    if(stateGen.isChangeSigP) {
+        cout << "isChangeSigP" << endl;
+        //Common multiple of 48 and 64;
+        int sampleCount = 500 * 192;
+        //sampleCount = 1536;
+
+        // Init sampleCount;
+        vector<ViByte> buffer1;
+        sig->GenerateWaveformCommands(sampleCount, buffer1);
+        error = viPrintf(vi, ":TRACe1:DELete:ALL\n");
+        error = viPrintf(vi, ":TRACe1:DEFine 1,%d\n", sampleCount);
+        ViUInt32 writtenCount;
+        error = viWrite(vi, &buffer1[0], (ViUInt32)buffer1.size(), &writtenCount);
+        error = viFlush(vi, VI_WRITE_BUF);
+
+        // Switch on outputs
+        error = viPrintf(vi, ":OUTPut1 on\n");
+
+        // Select segments
+        error = viPrintf(vi, ":TRACe1:SELect 1\n");
+
+        stateGen.isChangeSigP = 0;
+    }
+    if (stateGen.isAborted) {
+        cout << "isAborted" << endl;
+        error = viPrintf(vi, ":INITiate:IMMediate\n");
+        // Wait until all commands have been executed
+        error = viPrintf(vi, "*OPC?\n");
+        error = viScanf(vi, "%t", buffer);
+        // Capture errors from instrument
+        cout << "Check for errors ... " << endl;
+        do
+        {
+            error = viPrintf(vi, ":SYSTem:ERRor?\n");
+            error = viScanf(vi, "%t", buffer);
+            cout << "  " << buffer;
+        }while(strcmp(buffer, "0,\"No error\"\n") != 0);
+        cout << endl << endl << "Finished." << endl;
+        Sleep(5000); // milli seconds
+        stateGen.isAborted = 0;
+    }
+}
+
+int generator::openSession()
+{
     cout << "Open " << resrc << " ... ";
     error = viOpenDefaultRM(&session);
     error = viOpen(session, resrc, VI_NO_LOCK, 10000, &vi);
@@ -75,36 +145,10 @@ void generator::start()
             << "Make sure that the AgM8190Firmware Application is started: " << endl
             << "  Start Menu -> Keysight M8190 -> Keysight M8190" << endl << endl
             ;
-        //Sleep(5000); // milli seconds
-        //return 1;
+        Sleep(5000); // milli seconds
+        return 1;
     }
-
-    // Query the instrument identity
-
-    error = viPrintf(vi, "*IDN?\n");
-    ViChar buffer[5000];
-    error = viScanf(vi, "%t", buffer);
-    cout << "*IDN? -> " << buffer << endl;
-
-    // Reset the instrument
-    cout << "Reset instrument and setup waveform ... " << endl << endl;
-    error = viPrintf(vi, "*RST\n");
-
-    error = viPrintf(vi, ":FREQuency:RASTer %s\n", genData.find("-gFREQ")->second);
-    error = viPrintf(vi, ":DAC:VOLTage %s\n", genData.find("-gVOLT")->second);
-    error = viPrintf(vi, ":DAC:VOLTage:OFFSet 0\n");
-    error = viPrintf(vi, ":OUTPut1:ROUTe DAC\n");
-
-    int sampleCount = 500 * 192;
-    sampleCount = 1536;
-    sig->GranularityCheck(sampleCount);
-
-    // Ensure instrument is stopped
-    error = viPrintf(vi, ":ABORt\n");
-
-    vector<ViByte> buffer1;
-
-
+    return 0;
 }
 
 void generator::setSigData(string k, string v)
@@ -115,6 +159,15 @@ void generator::setSigData(string k, string v)
 generator::~generator()
 {
     delete sig;
+    if (stateGen.isCloseSes) {
+        cout << "~generator() stateGen.isCloseSes" << endl;
+        error = viPrintf(vi, ":ABORt\n");
+        error = viPrintf(vi, "*RST\n");
+        error = viClose(vi);
+        error = viClose(session);
+        stateGen.isCloseSes=0;
+        stateGen.isOpenSes=1;
+    }
 }
 
 generator::signal::signal()
@@ -126,7 +179,7 @@ generator::signal::signal()
     commands.push_back("exit");
 }
 
-void generator::signal::exec()
+void generator::signal::execShell()
 {
     string command;
     cout << "signal:";
@@ -151,12 +204,13 @@ void generator::signal::exec()
             cout << "value:"; getline(cin,value);
             sigData[key] = value;
             if (it == sigData.end()) cout << "new 'key-value' added" << endl;
+            *isChangeSigP = 1;
         } else if (command == "delP") {
             cout << "key:";
             string key; getline(cin,key);
             std::map<string,string>::iterator it = sigData.find(key);
             if (it == sigData.end()) { cout << "Key not find" << endl; }
-            else { sigData.erase(it); cout << "Key was delete" << endl; }
+            else { sigData.erase(it); cout << "Key was delete" << endl; *isChangeSigP = 1; }
         }
         cout << "signal:";
     }
@@ -177,17 +231,19 @@ void generator::signal::GranularityCheck(int &sampleCount)
         sampleCount = 384;
     else
     {
-//        int remainder = sampleCount % 192;
-//        int quotient = sampleCount/ 192;
+        int remainder = sampleCount % 192;
+        int quotient = sampleCount/ 192;
 
-//        if (remainder != 0)
-//            sampleCount = (quotient + 1) * 192;
-//        cout << sampleCount;
+        if (remainder != 0)
+            sampleCount = (quotient + 1) * 192;
+        //cout << sampleCount;
     }
 }
 
 void generator::signal_SIN::GenerateWaveformCommands(int &sampleCount, vector<ViByte> &buffer1)
 {
+    GranularityCheck(sampleCount);
+
     // Generate a sine wave, ensure granularity (192) and minimum samples (384)
     const int patternLength = 32;
 
@@ -207,7 +263,7 @@ void generator::signal_SIN::GenerateWaveformCommands(int &sampleCount, vector<Vi
     } while (sampleCount != sampleCountCheck);
 
     // Encode the binary commands to download the waveform
-    string bytes1 = string(":trac1:data 2,0,") + ScpiBlockPrefix(binaryValues.size());
+    string bytes1 = string(":trac1:data 1,0,") + ScpiBlockPrefix(binaryValues.size());
 
     buffer1.resize(bytes1.size() + binaryValues.size());
     memcpy(&buffer1[0], bytes1.c_str(), bytes1.size());
@@ -216,6 +272,8 @@ void generator::signal_SIN::GenerateWaveformCommands(int &sampleCount, vector<Vi
 
 void generator::signal_LFM::GenerateWaveformCommands(int &sampleCount, vector<ViByte> &buffer1)
 {
+    GranularityCheck(sampleCount);
+
     // Generate a LFM wave, ensure granularity (192) and minimum samples (384)
 
     vector<ViChar> binaryValues;

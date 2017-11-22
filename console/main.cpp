@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
             if (it == proData.end()) { cout << "Key not find" << endl; }
             else { proData.erase(it); cout << "Key was delete" << endl; }
         } else if (command == "generator") {
-            gen.exec();
+            gen.execShell();
         } else if (command == "analyzer") {
 
         } else if (command == "oscilloscope") {

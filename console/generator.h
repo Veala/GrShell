@@ -9,6 +9,7 @@
 #include <list>
 #include <vector>
 #include <algorithm>
+#include <windows.h>
 
 using namespace std;
 
@@ -19,26 +20,38 @@ public:
     ~generator();
     static map<string,string> genData;
     static void setSigData(string k,string v);
-    void exec();
+    void execShell();
     void start();
 
 protected:
+    ViChar* resrc = "TCPIP0::localhost::hislip0::INSTR";
+    int error;
 
 private:
+    ViSession session, vi;
+    int openSession();
+    struct state {
+        short isOpenSes = 1;
+        short isChangeGenP = 1;
+        short isChangeSigP = 1;
+        short isAborted = 0;
+        short isCloseSes = 0;
+    }stateGen;
+
     class signal
     {
     public:
         signal();
         virtual ~signal() { };
         static map<string,string> sigData;
-        void exec();
-    protected:
+        void execShell();
         virtual void GenerateWaveformCommands(int& sampleCount, vector<ViByte>& buffer1) = 0;
+        short *isChangeSigP;
+    protected:
         string ScpiBlockPrefix(size_t blocklen);
         void GranularityCheck(int& sampleCount);
     private:
         list<string> commands;
-
     };
 
     class signal_SIN : public signal
@@ -46,10 +59,7 @@ private:
     public:
         signal_SIN() : signal() {}
         ~signal_SIN() { };
-    protected:
         void GenerateWaveformCommands(int &sampleCount, vector<ViByte> &buffer1);
-    private:
-
     };
 
     class signal_LFM : public signal
@@ -57,9 +67,7 @@ private:
     public:
         signal_LFM() : signal() {}
         ~signal_LFM() { };
-    protected:
         void GenerateWaveformCommands(int &sampleCount, vector<ViByte> &buffer1);
-
     };
 
     void setDefault();
