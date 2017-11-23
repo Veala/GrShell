@@ -1,5 +1,6 @@
 #include <fstream>
 #include <generator.h>
+#include <analyzer.h>
 
 using namespace std;
 
@@ -7,6 +8,8 @@ ifstream projFile;
 map<string,string> proData;
 map<string,string> generator::genData;
 map<string,string> generator::signal::sigData;
+map<string,string> analyzer::anaData;
+
 //map<string,string> anaData;
 //map<string,string> oscData;
 list<string> commands;
@@ -37,6 +40,8 @@ int main(int argc, char* argv[])
                 generator::genData[k] = v;
             else if (k.at(1) == 's')
                 generator::setSigData(k, v);
+            else if (k.at(1) == 'a')
+                analyzer::anaData[k] = v;
         }
         projFile.close();
     }
@@ -52,6 +57,7 @@ int main(int argc, char* argv[])
     commands.push_back("exit");
 
     generator gen;
+    analyzer ana;
 
     string command;
     cout << "=>";
@@ -85,7 +91,7 @@ int main(int argc, char* argv[])
         } else if (command == "generator") {
             gen.execShell();
         } else if (command == "analyzer") {
-
+            ana.execShell();
         } else if (command == "oscilloscope") {
 
         } else if (command == "start") {

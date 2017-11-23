@@ -6,9 +6,9 @@ generator::generator()
     //genData["-gFREQ"] = "160.0E+06";
 
     if (signal::sigData["-sType"] == "LFM")
-        sig = new signal_LFM();
+        sig = new signal_LFM(gFreq);
     if (signal::sigData["-sType"] == "SIN")
-        sig = new signal_SIN();
+        sig = new signal_SIN(gFreq);
     sig->isChangeSigP = &stateGen.isChangeSigP;
     commands.push_back("getAllP");
     commands.push_back("setP");
@@ -83,7 +83,7 @@ void generator::start()
     if(stateGen.isChangeGenP) {
         cout << "isChangeGenP" << endl;
         cout << genData.find("-gVolt")->second.c_str() << endl;
-        error = viPrintf(vi, ":FREQuency:RASTer %s\n", genData.find("-gFreq")->second.c_str());
+        error = viPrintf(vi, ":FREQuency:RASTer %s\n", gFreq.c_str());
         error = viPrintf(vi, ":DAC:VOLTage %s\n", genData.find("-gVolt")->second.c_str());
         error = viPrintf(vi, ":DAC:VOLTage:OFFSet 0\n");
         error = viPrintf(vi, ":OUTPut1:ROUTe DAC\n");
@@ -170,8 +170,9 @@ generator::~generator()
     }
 }
 
-generator::signal::signal()
+generator::signal::signal(string gFreq)
 {
+    Fg=stod(gFreq); //Hz
     commands.push_back("getAllP");
     commands.push_back("setP");
     commands.push_back("delP");
@@ -245,21 +246,22 @@ void generator::signal_SIN::GenerateWaveformCommands(int &sampleCount, vector<Vi
     GranularityCheck(sampleCount);
 
     // Generate a sine wave, ensure granularity (192) and minimum samples (384)
-    const int patternLength = 32;
 
     vector<ViChar> binaryValues;
     int sampleCountCheck = 0;
+    const double Fs = stod(sigData.find("-sF")->second); //5 or 20MHz
+    const double K = Fg/(Fs*1000000);
+    const double Tg = 1000000/Fg; //mks
     do
     {
-        for (int i = 0; i < patternLength; ++i)
+        for (double i=0; i<K; i+=1)
         {
-            const short dac = (short)(2047 * sin(2 * M_PI * i / patternLength));
+            const short dac = (short)(2047 * sin(2 * M_PI * Fs * i * Tg));
             short value = (short)(dac << 4);
-            //if (i==0) value+=1;
             binaryValues.push_back((ViChar)value);
             binaryValues.push_back((ViChar)(value >> 8));
         }
-        sampleCountCheck += patternLength;
+        sampleCountCheck += K;
     } while (sampleCount != sampleCountCheck);
 
     // Encode the binary commands to download the waveform
@@ -278,15 +280,15 @@ void generator::signal_LFM::GenerateWaveformCommands(int &sampleCount, vector<Vi
 
     vector<ViChar> binaryValues;
     int sampleCountCheck = 0;
-    const float T_rast = 0.000833; //mks
-    //const float T_rast = 0.00625; //mks
-    const int F_min = 10; //MHz
-    const int F_max = 300; //MHz
-    const float Ts = T_rast * 384; //mks
-    const float F_0 = (F_max + F_min)/2; //MHz
-    const float b = (F_max - F_min)/Ts; //MHz^2
+    //const float Tr = 0.00625; //mks
+    const double F_min = stod(sigData.find("-sFmin")->second); //MHz
+    const double F_max = stod(sigData.find("-sFmax")->second); //MHz
+    const double Tr = 1000000/Fg; //mks
+    const double Ts = Tr * 384; //mks
+    const double F_0 = (F_max + F_min)/2; //MHz
+    const double b = (F_max - F_min)/Ts; //MHz^2
     do {
-        for (float i = -Ts/2; i<Ts/2 ; i+=T_rast)
+        for (double i = -Ts/2; i<Ts/2 ; i+=Tr)
         {
             const short dac = (short)(2047 * sin(2 * M_PI * (F_0 * i + b/2 * i * i)));
             //cout << dac << endl;
@@ -297,12 +299,7 @@ void generator::signal_LFM::GenerateWaveformCommands(int &sampleCount, vector<Vi
             //sampleCountCheck+=1;
         }
         sampleCountCheck += 384;
-        cout << "sampleCountCheck: " << sampleCountCheck << endl;
-        string ciin2;
-        cin >> ciin2;
     } while (sampleCount != sampleCountCheck);
-
-    cout << "sampleCountCheck: " << sampleCountCheck << endl;
 
     // Encode the binary commands to download the waveform
     string bytes1 = string(":trac1:data 1,0,") + ScpiBlockPrefix(binaryValues.size());

@@ -7,7 +7,9 @@ win32:INCLUDEPATH += "C:/Program Files (x86)/IVI Foundation/VISA/WinNT/Include"
 win32:LIBS += "c:/Program Files (x86)/IVI Foundation/VISA/WinNT/lib/msc/visa32.lib"
 
 SOURCES += main.cpp \
-    generator.cpp
+    generator.cpp \
+    analyzer.cpp
 
 HEADERS += \
-    generator.h
+    generator.h \
+    analyzer.h
