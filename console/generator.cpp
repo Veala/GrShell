@@ -83,7 +83,7 @@ void generator::start()
     if(stateGen.isChangeGenP) {
         cout << "isChangeGenP" << endl;
         cout << genData.find("-gVolt")->second.c_str() << endl;
-        error = viPrintf(vi, ":FREQuency:RASTer %s\n", gFreq.c_str());
+        //error = viPrintf(vi, ":FREQuency:RASTer %s\n", gFreq.c_str());
         error = viPrintf(vi, ":DAC:VOLTage %s\n", genData.find("-gVolt")->second.c_str());
         error = viPrintf(vi, ":DAC:VOLTage:OFFSet 0\n");
         error = viPrintf(vi, ":OUTPut1:ROUTe DAC\n");
@@ -110,6 +110,7 @@ void generator::start()
         // Select segments
         error = viPrintf(vi, ":TRACe1:SELect 1\n");
 
+        error = viPrintf(vi, ":FREQuency:RASTer %s\n", gFreq.c_str());
         stateGen.isChangeSigP = 0;
     }
     if (stateGen.isAborted) {
@@ -170,9 +171,9 @@ generator::~generator()
     }
 }
 
-generator::signal::signal(string gFreq)
+generator::signal::signal(string &gFreq)
 {
-    Fg=stod(gFreq); //Hz
+    gF=&gFreq; //Hz
     commands.push_back("getAllP");
     commands.push_back("setP");
     commands.push_back("delP");
@@ -243,25 +244,37 @@ void generator::signal::GranularityCheck(int &sampleCount)
 
 void generator::signal_SIN::GenerateWaveformCommands(int &sampleCount, vector<ViByte> &buffer1)
 {
-    GranularityCheck(sampleCount);
+    //GranularityCheck(sampleCount);
 
     // Generate a sine wave, ensure granularity (192) and minimum samples (384)
 
-    vector<ViChar> binaryValues;
+    const double Fs = stod(sigData.find("-sF")->second); //5 or 20MHz in Hz
+    int N = 26;
+    int Chain;
+    double Fr = Fs*N;
+
+    if (Fr < 125000000)  { Fr = 125000000;  Chain = 1; }
+    if (Fr > 7500000000) { Fr = 7400000000; Chain = 0; }
+
+    int remainder = Fr % Fs;
+    int quotient = Fr / Fs;
+    if (remainder != 0) { N=quotient+Chain; Fr=N*Fs;  }
+    sampleCount = N*192;
+
     int sampleCountCheck = 0;
-    const double Fs = stod(sigData.find("-sF")->second); //5 or 20MHz
-    const double K = Fg/(Fs*1000000);
-    const double Tg = 1000000/Fg; //mks
+    vector<ViChar> binaryValues;
+    double Tr=1/Fr;
+    *gF = to_string(Fr);
     do
     {
-        for (double i=0; i<K; i+=1)
+        for (double i=0; i<N; ++i)
         {
-            const short dac = (short)(2047 * sin(2 * M_PI * Fs * i * Tg));
+            const short dac = (short)(2047 * sin(2 * M_PI * Fs * i * Tr));
             short value = (short)(dac << 4);
             binaryValues.push_back((ViChar)value);
             binaryValues.push_back((ViChar)(value >> 8));
         }
-        sampleCountCheck += K;
+        sampleCountCheck += N;
     } while (sampleCount != sampleCountCheck);
 
     // Encode the binary commands to download the waveform
@@ -274,31 +287,44 @@ void generator::signal_SIN::GenerateWaveformCommands(int &sampleCount, vector<Vi
 
 void generator::signal_LFM::GenerateWaveformCommands(int &sampleCount, vector<ViByte> &buffer1)
 {
-    GranularityCheck(sampleCount);
+    //GranularityCheck(sampleCount);
 
     // Generate a LFM wave, ensure granularity (192) and minimum samples (384)
 
-    vector<ViChar> binaryValues;
+    const double F_min = stod(sigData.find("-sFmin")->second); //Hz
+    const double F_max = stod(sigData.find("-sFmax")->second); //Hz
+    const double Ts = stod(sigData.find("-sT")->second); //s
+    const double Fs = 1/Ts; //Hz
+    const double F_0 = (F_max + F_min)/2; //Hz
+    const double b = (F_max - F_min)/Ts; //Hz^2
+
+    int N = 3;
+    int Chain=0;
+    double Fr = F_max*N;
+
+    if (Fr < 125000000)  { Fr = 125000000;  Chain = 1; }
+    if (Fr > 7500000000) { Fr = 7400000000; Chain = 0; }
+
+    int remainder = Fr % Fs;
+    int quotient = Fr / Fs;
+    if (remainder != 0) { N=quotient+Chain; Fr=N*Fs;  }
+    sampleCount = N*192;
+
+    if (sampleCount > 2E+9) cout << "Sample count > 2Gs";
+
     int sampleCountCheck = 0;
-    //const float Tr = 0.00625; //mks
-    const double F_min = stod(sigData.find("-sFmin")->second); //MHz
-    const double F_max = stod(sigData.find("-sFmax")->second); //MHz
-    const double Tr = 1000000/Fg; //mks
-    const double Ts = Tr * 384; //mks
-    const double F_0 = (F_max + F_min)/2; //MHz
-    const double b = (F_max - F_min)/Ts; //MHz^2
+    vector<ViChar> binaryValues;
+    double Tr=1/Fr;
+    *gF = to_string(Fr);
     do {
         for (double i = -Ts/2; i<Ts/2 ; i+=Tr)
         {
-            const short dac = (short)(2047 * sin(2 * M_PI * (F_0 * i + b/2 * i * i)));
-            //cout << dac << endl;
+            const short dac = (short)(2047 * cos(2 * M_PI * (F_0 * i + b/2 * i * i)));
             short value = (short)(dac << 4);
-            //if (i==0) value+=1;
             binaryValues.push_back((ViChar)value);
             binaryValues.push_back((ViChar)(value >> 8));
-            //sampleCountCheck+=1;
         }
-        sampleCountCheck += 384;
+        sampleCountCheck += N;
     } while (sampleCount != sampleCountCheck);
 
     // Encode the binary commands to download the waveform

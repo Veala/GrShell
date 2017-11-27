@@ -41,18 +41,18 @@ private:
     class signal
     {
     public:
-        signal(string gFreq);
+        signal(string &gFreq);
         virtual ~signal() { };
         static map<string,string> sigData;
         void execShell();
         virtual void GenerateWaveformCommands(int& sampleCount, vector<ViByte>& buffer1) = 0;
         short *isChangeSigP;
     protected:
-        double Fg;
         string ScpiBlockPrefix(size_t blocklen);
         void GranularityCheck(int& sampleCount);
     private:
         list<string> commands;
+        string *gF;
     };
 
     class signal_SIN : public signal
@@ -73,7 +73,7 @@ private:
 
     void setDefault();
     list<string> commands;
-    string gFreq = "6.0E+09";
+    string gFreq;
 
 public:
     signal *sig;

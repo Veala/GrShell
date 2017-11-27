@@ -59,6 +59,13 @@ int main(int argc, char* argv[])
     generator gen;
     analyzer ana;
 
+    std::map<string,string>::iterator it = proData.find("-pMode");
+    if (it!=proData.end())
+        if (it->second == "auto") {
+            ana.start();
+            gen.start();
+        }
+
     string command;
     cout << "=>";
     while(getline(cin,command)) {
