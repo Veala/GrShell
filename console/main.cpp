@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
     std::map<string,string>::iterator it = proData.find("-pm");
     if (it!=proData.end())
         if (it->second == "auto") {
-            ana.start();
+            //ana.start();
             gen.start();
         }
 

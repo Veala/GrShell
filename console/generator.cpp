@@ -100,17 +100,20 @@ void generator::start()
         vector<ViByte> buffer1;
         sig->GenerateWaveformCommands(sampleCount, buffer1);
 
-        cout << "test" << endl;
-        cout << gFreq.c_str() << endl;
-        cout << "sc: " << sampleCount;
+//        cout << "test" << endl;
+//        cout << gFreq.c_str() << endl;
+//        cout << "sc: " << sampleCount;
         error = viPrintf(vi, ":FREQuency:RASTer %s\n", gFreq.c_str());
 
         error = viPrintf(vi, ":TRACe1:DELete:ALL\n");
         error = viPrintf(vi, ":TRACe1:DEFine 1,%d\n", sampleCount);
+
+        error = viPrintf(vi, "*OPC?\n");
+        error = viScanf(vi, "%t", buffer);
+
         ViUInt32 writtenCount;
         error = viWrite(vi, &buffer1[0], (ViUInt32)buffer1.size(), &writtenCount);
         error = viFlush(vi, VI_WRITE_BUF);
-
         // Switch on outputs
         error = viPrintf(vi, ":OUTPut1 on\n");
 
@@ -302,30 +305,32 @@ void generator::signal_LFM::GenerateWaveformCommands(int &sampleCount, vector<Vi
 
     // Generate a LFM wave, ensure granularity (192) and minimum samples (384)
 
-    cout << "Test" << endl;
+//    cout << "Test" << endl;
     const long long F_min = stod(sigData.find("-sFmin")->second); //Hz
     const long long F_max = stod(sigData.find("-sFmax")->second); //Hz
     const double long Ts = stod(sigData.find("-sT")->second); //s
-    const double long Fs = (double long)1/Ts; //Hz
+    const long long Fs = (long long)1/Ts; //Hz
     const long double F_0 = (F_max + F_min)/2; //Hz
     const long double b = (long double)(F_max - F_min)/Ts; //Hz^2
 
-    cout << "F_min" << F_min << endl;
-    cout << "F_max" << F_max << endl;
-    cout << "Ts " << Ts << endl;
-    cout << "Fs " << Fs << endl;
-    cout << "F_0 " << F_0 << endl;
-    cout << "b " << b << endl;
+//    cout << "F_min" << F_min << endl;
+//    cout << "F_max" << F_max << endl;
+//    cout << "Ts " << Ts << endl;
+//    cout << "Fs " << Fs << endl;
+//    cout << "F_0 " << F_0 << endl;
+//    cout << "b " << b << endl;
+
     long N = 3;
     int Chain=0;
     long long Fr = (long long)F_max*N;
-    cout << "Fr " << Fr << endl;
+
+//    cout << "Fr " << Fr << endl;
 
     if (Fr < 125000000)  { Fr = 125000000;  Chain = 1; }
     if (Fr > 7500000000) { Fr = 7400000000; Chain = 0; }
-//    int remainder = Fr % Fs;
+    int remainder = Fr % Fs;
     int quotient = Fr / Fs;
-    //if (remainder != 0) { N=quotient+Chain; Fr=N*Fs;  }
+    if (remainder != 0) { N=quotient+Chain; Fr=N*Fs;  }
     sampleCount = N*192;
     if (quotient > sampleCount) { N=quotient+Chain; Fr=N*Fs;  }
     sampleCount = N*192;
@@ -335,24 +340,30 @@ void generator::signal_LFM::GenerateWaveformCommands(int &sampleCount, vector<Vi
     vector<ViChar> binaryValues;
     long double Tr=(long double)1/Fr;
     *gF = to_string(Fr);
-    cout << "Tr " << Tr << endl;
-    cout << "N " << N << endl;
+
+//    cout << "Tr " << Tr << endl;
+//    cout << "N " << N << endl;
+
     int counter = 0;
     do {
-        for (long double i = -Ts/2; i<Ts/2 ; i+=Tr)
+        //for (long double i = -Ts/2; i<Ts/2 ; i+=Tr)
+        for (long double i = 0; i<N ; ++i)
         {
-            const short dac = (short)(2047 * cos(2 * M_PI * (F_0 * i + b/2 * i * i)));
+            //const short dac = (short)(2047 * cos(2 * M_PI * (F_0 * i + b/2 * i * i)));
+            long double t = -(long double)Ts/2 + i*Tr;
+            const short dac = (short)(2047 * cos(2 * M_PI * (F_0 * t + b/2 * t * t)));
             //cout << dac << endl;
-            counter++;
+            //counter++;
             short value = (short)(dac << 4);
             binaryValues.push_back((ViChar)value);
             binaryValues.push_back((ViChar)(value >> 8));
         }
-        cout << counter << endl;
+        //cout << counter << endl;
         counter=0;
         sampleCountCheck += N;
     } while (sampleCount != sampleCountCheck);
 
+    cout << "binaryValues.size(): " <<  binaryValues.size() << endl;
     // Encode the binary commands to download the waveform
     string bytes1 = string(":trac1:data 1,0,") + ScpiBlockPrefix(binaryValues.size());
 

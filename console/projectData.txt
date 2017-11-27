@@ -1,14 +1,30 @@
-//Project: -m [hand or auto], hand is default
--m auto
+Project:
+//-m [hand or auto], hand is default
+-pm auto
+//-pType - what you want to count
+-pType 1
 
-//Generator:
+Generator:
 -gVolt 5.0E-01
--gFreq 160.0E+06
+//-gFreq 6.0E+09 //SIN
+//-gFreq 6.0E+09 //LFM
 
-//Signal:
+Signal:
 //Types: SIN, LFM, NOISE, RECTIMP
--sType LFM
--sFmin 10
--sFmax 800
--sTrast 0.000833
+-sType SIN
+//-sType LFM
+//Hz
+-sF 5000000
+//-sFmin 10E+6
+//-sFmax 800E+6
+//-sT 5E-6
 
+Analyzer:
+-aSPAN 800MHz
+-aFREQ 400MHz
+-aSWT 10ms
+-aRBW 3MHz
+-aVBW 300kHz
+-aAtt 10dB
+-aRef -60dBm
+-aTRACE MAXH

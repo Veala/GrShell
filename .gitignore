@@ -8,6 +8,9 @@
 /build-console-Desktop_Qt_5_9_1_MinGW_32bit-Release
 /build-console-Desktop_Qt_5_9_1_MinGW_32bit-Debug
 
+#ignore .svn path
+/console/.svn
+
 #ignore *.user, *.autosave
 /GrShell/*.user
 /GrShell/*.autosave
