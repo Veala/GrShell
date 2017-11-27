@@ -10,6 +10,7 @@ generator::generator()
     if (signal::sigData["-sType"] == "SIN")
         sig = new signal_SIN(gFreq);
     sig->isChangeSigP = &stateGen.isChangeSigP;
+    //sig->gF = &gFreq;
     commands.push_back("getAllP");
     commands.push_back("setP");
     commands.push_back("delP");
@@ -98,6 +99,12 @@ void generator::start()
         // Init sampleCount;
         vector<ViByte> buffer1;
         sig->GenerateWaveformCommands(sampleCount, buffer1);
+
+        cout << "test" << endl;
+        cout << gFreq.c_str() << endl;
+        cout << "sc: " << sampleCount;
+        error = viPrintf(vi, ":FREQuency:RASTer %s\n", gFreq.c_str());
+
         error = viPrintf(vi, ":TRACe1:DELete:ALL\n");
         error = viPrintf(vi, ":TRACe1:DEFine 1,%d\n", sampleCount);
         ViUInt32 writtenCount;
@@ -110,7 +117,7 @@ void generator::start()
         // Select segments
         error = viPrintf(vi, ":TRACe1:SELect 1\n");
 
-        error = viPrintf(vi, ":FREQuency:RASTer %s\n", gFreq.c_str());
+
         stateGen.isChangeSigP = 0;
     }
     if (stateGen.isAborted) {
@@ -248,10 +255,10 @@ void generator::signal_SIN::GenerateWaveformCommands(int &sampleCount, vector<Vi
 
     // Generate a sine wave, ensure granularity (192) and minimum samples (384)
 
-    const double Fs = stod(sigData.find("-sF")->second); //5 or 20MHz in Hz
+    const long Fs = stod(sigData.find("-sF")->second); //5 or 20MHz in Hz
     int N = 26;
     int Chain;
-    double Fr = Fs*N;
+    long Fr = Fs*N;
 
     if (Fr < 125000000)  { Fr = 125000000;  Chain = 1; }
     if (Fr > 7500000000) { Fr = 7400000000; Chain = 0; }
@@ -260,16 +267,20 @@ void generator::signal_SIN::GenerateWaveformCommands(int &sampleCount, vector<Vi
     int quotient = Fr / Fs;
     if (remainder != 0) { N=quotient+Chain; Fr=N*Fs;  }
     sampleCount = N*192;
+    //cout << "sc: " << sampleCount << endl;
 
     int sampleCountCheck = 0;
     vector<ViChar> binaryValues;
-    double Tr=1/Fr;
+    double Tr=(double)1/Fr;
+    //cout << "Fr: " << Fr << endl;
+    //cout << "Tr: " << Tr << endl;
     *gF = to_string(Fr);
     do
     {
-        for (double i=0; i<N; ++i)
+        for (int i=0; i<N; ++i)
         {
             const short dac = (short)(2047 * sin(2 * M_PI * Fs * i * Tr));
+            //cout << dac << endl;
             short value = (short)(dac << 4);
             binaryValues.push_back((ViChar)value);
             binaryValues.push_back((ViChar)(value >> 8));
@@ -291,39 +302,54 @@ void generator::signal_LFM::GenerateWaveformCommands(int &sampleCount, vector<Vi
 
     // Generate a LFM wave, ensure granularity (192) and minimum samples (384)
 
-    const double F_min = stod(sigData.find("-sFmin")->second); //Hz
-    const double F_max = stod(sigData.find("-sFmax")->second); //Hz
-    const double Ts = stod(sigData.find("-sT")->second); //s
-    const double Fs = 1/Ts; //Hz
-    const double F_0 = (F_max + F_min)/2; //Hz
-    const double b = (F_max - F_min)/Ts; //Hz^2
+    cout << "Test" << endl;
+    const long long F_min = stod(sigData.find("-sFmin")->second); //Hz
+    const long long F_max = stod(sigData.find("-sFmax")->second); //Hz
+    const double long Ts = stod(sigData.find("-sT")->second); //s
+    const double long Fs = (double long)1/Ts; //Hz
+    const long double F_0 = (F_max + F_min)/2; //Hz
+    const long double b = (long double)(F_max - F_min)/Ts; //Hz^2
 
-    int N = 3;
+    cout << "F_min" << F_min << endl;
+    cout << "F_max" << F_max << endl;
+    cout << "Ts " << Ts << endl;
+    cout << "Fs " << Fs << endl;
+    cout << "F_0 " << F_0 << endl;
+    cout << "b " << b << endl;
+    long N = 3;
     int Chain=0;
-    double Fr = F_max*N;
+    long long Fr = (long long)F_max*N;
+    cout << "Fr " << Fr << endl;
 
     if (Fr < 125000000)  { Fr = 125000000;  Chain = 1; }
     if (Fr > 7500000000) { Fr = 7400000000; Chain = 0; }
-
-    int remainder = Fr % Fs;
+//    int remainder = Fr % Fs;
     int quotient = Fr / Fs;
-    if (remainder != 0) { N=quotient+Chain; Fr=N*Fs;  }
+    //if (remainder != 0) { N=quotient+Chain; Fr=N*Fs;  }
     sampleCount = N*192;
-
+    if (quotient > sampleCount) { N=quotient+Chain; Fr=N*Fs;  }
+    sampleCount = N*192;
     if (sampleCount > 2E+9) cout << "Sample count > 2Gs";
 
     int sampleCountCheck = 0;
     vector<ViChar> binaryValues;
-    double Tr=1/Fr;
+    long double Tr=(long double)1/Fr;
     *gF = to_string(Fr);
+    cout << "Tr " << Tr << endl;
+    cout << "N " << N << endl;
+    int counter = 0;
     do {
-        for (double i = -Ts/2; i<Ts/2 ; i+=Tr)
+        for (long double i = -Ts/2; i<Ts/2 ; i+=Tr)
         {
             const short dac = (short)(2047 * cos(2 * M_PI * (F_0 * i + b/2 * i * i)));
+            //cout << dac << endl;
+            counter++;
             short value = (short)(dac << 4);
             binaryValues.push_back((ViChar)value);
             binaryValues.push_back((ViChar)(value >> 8));
         }
+        cout << counter << endl;
+        counter=0;
         sampleCountCheck += N;
     } while (sampleCount != sampleCountCheck);
 
