@@ -1,6 +1,8 @@
 #ifndef GENERATOR_H
 #define GENERATOR_H
 
+#define debug
+
 #include <iostream>
 #include <sstream>
 #include <math.h>
@@ -45,7 +47,7 @@ private:
         virtual ~signal() { };
         static map<string,string> sigData;
         void execShell();
-        virtual void GenerateWaveformCommands(int& sampleCount, vector<ViByte>& buffer1) = 0;
+        virtual void GenerateWaveformCommands(long long& sampleCount, vector<ViByte>& buffer1) = 0;
         short *isChangeSigP;
     protected:
         string *gF;
@@ -60,7 +62,7 @@ private:
     public:
         signal_SIN(string &gFreq) : signal(gFreq) {}
         ~signal_SIN() { };
-        void GenerateWaveformCommands(int &sampleCount, vector<ViByte> &buffer1);
+        void GenerateWaveformCommands(long long& sampleCount, vector<ViByte> &buffer1);
     };
 
     class signal_LFM : public signal
@@ -68,7 +70,15 @@ private:
     public:
         signal_LFM(string &gFreq) : signal(gFreq) {}
         ~signal_LFM() { };
-        void GenerateWaveformCommands(int &sampleCount, vector<ViByte> &buffer1);
+        void GenerateWaveformCommands(long long& sampleCount, vector<ViByte> &buffer1);
+    };
+
+    class signal_IMP : public signal
+    {
+    public:
+        signal_IMP(string &gFreq) : signal(gFreq) {}
+        ~signal_IMP() { };
+        void GenerateWaveformCommands(long long& sampleCount, vector<ViByte> &buffer1);
     };
 
     void setDefault();

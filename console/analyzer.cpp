@@ -13,7 +13,6 @@ analyzer::analyzer()
 analyzer::~analyzer()
 {
     if (stateAna.isCloseSes) {
-        cout << "~analyzer() stateAna.isCloseSes" << endl;
         error = viPrintf(vi, "*RST\n");
         error = viClose(vi);
         error = viClose(session);
@@ -94,7 +93,7 @@ void analyzer::start()
             error = viScanf(vi, "%t", buffer);
             cout << "  " << buffer;
         }while(strcmp(buffer, "0,\"No error\"\n") != 0);
-        cout << endl << endl << "Finished." << endl;
+        cout << endl << endl << "Finished." << endl << endl;
         Sleep(5000); // milli seconds
         stateAna.isChangeAnaP = 0;
     }

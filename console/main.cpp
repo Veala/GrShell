@@ -14,6 +14,11 @@ map<string,string> analyzer::anaData;
 //map<string,string> oscData;
 list<string> commands;
 
+void start(analyzer& a, generator& g) {
+    //a.start();
+    g.start();
+}
+
 int main(int argc, char* argv[])
 {
     if (argc > 1) {
@@ -61,10 +66,8 @@ int main(int argc, char* argv[])
 
     std::map<string,string>::iterator it = proData.find("-pm");
     if (it!=proData.end())
-        if (it->second == "auto") {
-            //ana.start();
-            gen.start();
-        }
+        if (it->second == "auto")
+            start(ana, gen);
 
     string command;
     cout << "=>";
@@ -102,7 +105,7 @@ int main(int argc, char* argv[])
         } else if (command == "oscilloscope") {
 
         } else if (command == "start") {
-
+            start(ana, gen);
         }
         cout << "=>";
     }

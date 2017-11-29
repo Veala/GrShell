@@ -1,6 +1,8 @@
 #ifndef ANALYZER_H
 #define ANALYZER_H
 
+//#define debug
+
 #include <iostream>
 #include <sstream>
 #include <math.h>

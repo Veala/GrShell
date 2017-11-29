@@ -9,6 +9,8 @@ generator::generator()
         sig = new signal_LFM(gFreq);
     if (signal::sigData["-sType"] == "SIN")
         sig = new signal_SIN(gFreq);
+    if (signal::sigData["-sType"] == "IMP")
+        sig = new signal_IMP(gFreq);
     sig->isChangeSigP = &stateGen.isChangeSigP;
     //sig->gF = &gFreq;
     commands.push_back("getAllP");
@@ -73,8 +75,18 @@ void generator::start()
     cout << "*IDN? -> " << buffer << endl;
 
     if(stateGen.isChangeSigP || stateGen.isChangeGenP) {
-        cout << "abort" << endl;
+
+#ifdef debug
+        cout << "start() -> generator state: isChangeSigP || isChangeGenP" << endl;
+#endif
+
         error = viPrintf(vi, ":ABORt\n");
+        do {
+            Sleep(50);
+            error = viPrintf(vi, "*OPC?\n");
+            error = viScanf(vi, "%t", buffer);
+        } while(strcmp(buffer,"1\n") != 0);
+
         stateGen.isAborted = 1;
     }
 //    if(stateGen.isChangeSigP) {
@@ -82,49 +94,85 @@ void generator::start()
 //        error = viPrintf(vi, "*RST\n");
 //    }
     if(stateGen.isChangeGenP) {
-        cout << "isChangeGenP" << endl;
-        cout << genData.find("-gVolt")->second.c_str() << endl;
+
+#ifdef debug
+        cout << "start() -> generator state: isChangeGenP: -gVolt: " << genData.find("-gVolt")->second.c_str() << endl;
+#endif
         //error = viPrintf(vi, ":FREQuency:RASTer %s\n", gFreq.c_str());
         error = viPrintf(vi, ":DAC:VOLTage %s\n", genData.find("-gVolt")->second.c_str());
+        do {
+            Sleep(50);
+            error = viPrintf(vi, "*OPC?\n");
+            error = viScanf(vi, "%t", buffer);
+        } while(strcmp(buffer,"1\n") != 0);
+
         error = viPrintf(vi, ":DAC:VOLTage:OFFSet 0\n");
         error = viPrintf(vi, ":OUTPut1:ROUTe DAC\n");
         stateGen.isChangeGenP = 0;
     }
     if(stateGen.isChangeSigP) {
-        cout << "isChangeSigP" << endl;
+
+#ifdef debug
+        cout << "start() -> generator state: isChangeSigP" << endl;
+#endif
+
         //Common multiple of 48 and 64;
-        int sampleCount = 500 * 192;
-        //sampleCount = 1536;
+        long long sampleCount=0;
 
         // Init sampleCount;
         vector<ViByte> buffer1;
         sig->GenerateWaveformCommands(sampleCount, buffer1);
 
-//        cout << "test" << endl;
-//        cout << gFreq.c_str() << endl;
-//        cout << "sc: " << sampleCount;
         error = viPrintf(vi, ":FREQuency:RASTer %s\n", gFreq.c_str());
+        do {
+            Sleep(50);
+            error = viPrintf(vi, "*OPC?\n");
+            error = viScanf(vi, "%t", buffer);
+        } while(strcmp(buffer,"1\n") != 0);
 
         error = viPrintf(vi, ":TRACe1:DELete:ALL\n");
-        error = viPrintf(vi, ":TRACe1:DEFine 1,%d\n", sampleCount);
+        do {
+            Sleep(50);
+            error = viPrintf(vi, "*OPC?\n");
+            error = viScanf(vi, "%t", buffer);
+        } while(strcmp(buffer,"1\n") != 0);
 
-        error = viPrintf(vi, "*OPC?\n");
-        error = viScanf(vi, "%t", buffer);
+        error = viPrintf(vi, ":TRACe1:DEFine 1,%ld\n", (long int)sampleCount);
+        do {
+            Sleep(50);
+            error = viPrintf(vi, "*OPC?\n");
+            error = viScanf(vi, "%t", buffer);
+        } while(strcmp(buffer,"1\n") != 0);
 
         ViUInt32 writtenCount;
         error = viWrite(vi, &buffer1[0], (ViUInt32)buffer1.size(), &writtenCount);
+        do {
+            Sleep(50);
+            error = viPrintf(vi, "*OPC?\n");
+            error = viScanf(vi, "%t", buffer);
+        } while(strcmp(buffer,"1\n") != 0);
+
         error = viFlush(vi, VI_WRITE_BUF);
+        do {
+            Sleep(50);
+            error = viPrintf(vi, "*OPC?\n");
+            error = viScanf(vi, "%t", buffer);
+        } while(strcmp(buffer,"1\n") != 0);
+
         // Switch on outputs
         error = viPrintf(vi, ":OUTPut1 on\n");
 
         // Select segments
         error = viPrintf(vi, ":TRACe1:SELect 1\n");
 
-
         stateGen.isChangeSigP = 0;
     }
     if (stateGen.isAborted) {
-        cout << "isAborted" << endl;
+
+#ifdef debug
+        cout << "start() -> generator state: isAborted" << endl;
+#endif
+
         error = viPrintf(vi, ":INITiate:IMMediate\n");
         // Wait until all commands have been executed
         error = viPrintf(vi, "*OPC?\n");
@@ -137,7 +185,7 @@ void generator::start()
             error = viScanf(vi, "%t", buffer);
             cout << "  " << buffer;
         }while(strcmp(buffer, "0,\"No error\"\n") != 0);
-        cout << endl << endl << "Finished." << endl;
+        cout << endl << endl << "Finished." << endl << endl;
         Sleep(5000); // milli seconds
         stateGen.isAborted = 0;
     }
@@ -171,7 +219,6 @@ generator::~generator()
 {
     delete sig;
     if (stateGen.isCloseSes) {
-        cout << "~generator() stateGen.isCloseSes" << endl;
         error = viPrintf(vi, ":ABORt\n");
         error = viPrintf(vi, "*RST\n");
         error = viClose(vi);
@@ -252,35 +299,43 @@ void generator::signal::GranularityCheck(int &sampleCount)
     }
 }
 
-void generator::signal_SIN::GenerateWaveformCommands(int &sampleCount, vector<ViByte> &buffer1)
+void generator::signal_SIN::GenerateWaveformCommands(long long &sampleCount, vector<ViByte> &buffer1)
 {
     //GranularityCheck(sampleCount);
 
     // Generate a sine wave, ensure granularity (192) and minimum samples (384)
 
-    const long Fs = stod(sigData.find("-sF")->second); //5 or 20MHz in Hz
-    int N = 26;
+    const long long Fs = stod(sigData.find("-sF")->second); //5 or 20MHz in Hz
+    long N = 26;
     int Chain;
-    long Fr = Fs*N;
+    long long Fr = (long long)Fs*N;
 
     if (Fr < 125000000)  { Fr = 125000000;  Chain = 1; }
     if (Fr > 7500000000) { Fr = 7400000000; Chain = 0; }
 
-    int remainder = Fr % Fs;
-    int quotient = Fr / Fs;
+    long int remainder = Fr % Fs;
+    long int quotient = Fr / Fs;
     if (remainder != 0) { N=quotient+Chain; Fr=N*Fs;  }
-    sampleCount = N*192;
-    //cout << "sc: " << sampleCount << endl;
+    sampleCount = (long long)N*192;
 
-    int sampleCountCheck = 0;
+#ifdef debug
+    cout << "GenerateWaveformCommands() -> sampleCount: " << sampleCount << endl;
+#endif
+
+    long long sampleCountCheck = 0;
     vector<ViChar> binaryValues;
-    double Tr=(double)1/Fr;
-    //cout << "Fr: " << Fr << endl;
-    //cout << "Tr: " << Tr << endl;
+    binaryValues.clear();
+    long double Tr=(long double)1/Fr;
+
+#ifdef debug
+    cout << "GenerateWaveformCommands() -> Fr: " << Fr << endl;
+    cout << "GenerateWaveformCommands() -> Tr: " << Tr << endl;
+#endif
+
     *gF = to_string(Fr);
     do
     {
-        for (int i=0; i<N; ++i)
+        for (long double i=0; i<N; ++i)
         {
             const short dac = (short)(2047 * sin(2 * M_PI * Fs * i * Tr));
             //cout << dac << endl;
@@ -299,52 +354,91 @@ void generator::signal_SIN::GenerateWaveformCommands(int &sampleCount, vector<Vi
     memcpy(&buffer1[bytes1.size()], &binaryValues[0], binaryValues.size());
 }
 
-void generator::signal_LFM::GenerateWaveformCommands(int &sampleCount, vector<ViByte> &buffer1)
+void generator::signal_LFM::GenerateWaveformCommands(long long &sampleCount, vector<ViByte> &buffer1)
 {
     //GranularityCheck(sampleCount);
 
     // Generate a LFM wave, ensure granularity (192) and minimum samples (384)
 
-//    cout << "Test" << endl;
     const long long F_min = stod(sigData.find("-sFmin")->second); //Hz
     const long long F_max = stod(sigData.find("-sFmax")->second); //Hz
     const double long Ts = stod(sigData.find("-sT")->second); //s
-    const long long Fs = (long long)1/Ts; //Hz
+    const long long Fs = (long long)(1/Ts + 1); //Hz
     const long double F_0 = (F_max + F_min)/2; //Hz
     const long double b = (long double)(F_max - F_min)/Ts; //Hz^2
 
-//    cout << "F_min" << F_min << endl;
-//    cout << "F_max" << F_max << endl;
-//    cout << "Ts " << Ts << endl;
-//    cout << "Fs " << Fs << endl;
-//    cout << "F_0 " << F_0 << endl;
-//    cout << "b " << b << endl;
+#ifdef debug
+    cout << "GenerateWaveformCommands() -> F_min: " << F_min << endl;
+    cout << "GenerateWaveformCommands() -> F_max: " << F_max << endl;
+    cout << "GenerateWaveformCommands() -> Ts: " << Ts << endl;
+    cout << "GenerateWaveformCommands() -> Fs: " << Fs << endl;
+    cout << "GenerateWaveformCommands() -> F_0: " << F_0 << endl;
+    cout << "GenerateWaveformCommands() -> b: " << b << endl;
+#endif
 
     long N = 3;
     int Chain=0;
     long long Fr = (long long)F_max*N;
 
-//    cout << "Fr " << Fr << endl;
+#ifdef debug
+    cout << "GenerateWaveformCommands() -> Fr: " << Fr << endl;
+#endif
 
     if (Fr < 125000000)  { Fr = 125000000;  Chain = 1; }
     if (Fr > 7500000000) { Fr = 7400000000; Chain = 0; }
-    int remainder = Fr % Fs;
-    int quotient = Fr / Fs;
-    if (remainder != 0) { N=quotient+Chain; Fr=N*Fs;  }
-    sampleCount = N*192;
-    if (quotient > sampleCount) { N=quotient+Chain; Fr=N*Fs;  }
-    sampleCount = N*192;
-    if (sampleCount > 2E+9) cout << "Sample count > 2Gs";
+    long int remainder = Fr % Fs;
+    long int quotient = Fr / Fs;
 
-    int sampleCountCheck = 0;
+#ifdef debug
+    cout << "GenerateWaveformCommands() -> Fr: " << Fr << endl;
+    cout << "GenerateWaveformCommands() -> remainder: " << remainder << endl;
+    cout << "GenerateWaveformCommands() -> quotient: " << quotient << endl;
+#endif
+
+    if (remainder != 0) { N=quotient+Chain; Fr=N*Fs;  }
+
+#ifdef debug
+    cout << "GenerateWaveformCommands() -> Fr: " << Fr << endl;
+#endif
+
+    sampleCount = (long long)N*192;
+    if (quotient > sampleCount) { N=quotient+Chain; Fr=N*Fs;  }
+
+#ifdef debug
+    cout << "GenerateWaveformCommands() -> Fr: " << Fr << endl;
+#endif
+
+    sampleCount = (long long)N*192;
+
+    if (sampleCount > 2E+9) {
+
+#ifdef debug
+        cout << "GenerateWaveformCommands(): Sample count > 2Gs" << endl;
+#endif
+
+        long X = N / 64;
+        X = X / 48;
+        N = X * 48 *64;
+        Fr=N*Fs;
+        sampleCount = (long long)N;
+    }
+
+#ifdef debug
+    cout << "GenerateWaveformCommands() -> Fr: " << Fr << endl;
+#endif
+
+    long long sampleCountCheck = 0;
     vector<ViChar> binaryValues;
+    binaryValues.clear();
     long double Tr=(long double)1/Fr;
     *gF = to_string(Fr);
 
-//    cout << "Tr " << Tr << endl;
-//    cout << "N " << N << endl;
+#ifdef debug
+    cout << "GenerateWaveformCommands() -> Tr: " << Tr << endl;
+    cout << "GenerateWaveformCommands() -> N: " << N << endl;
+#endif
 
-    int counter = 0;
+    //int counter = 0;
     do {
         //for (long double i = -Ts/2; i<Ts/2 ; i+=Tr)
         for (long double i = 0; i<N ; ++i)
@@ -359,11 +453,93 @@ void generator::signal_LFM::GenerateWaveformCommands(int &sampleCount, vector<Vi
             binaryValues.push_back((ViChar)(value >> 8));
         }
         //cout << counter << endl;
-        counter=0;
+        //counter=0;
         sampleCountCheck += N;
     } while (sampleCount != sampleCountCheck);
 
-    cout << "binaryValues.size(): " <<  binaryValues.size() << endl;
+#ifdef debug
+    cout << "GenerateWaveformCommands() -> binaryValues.size(): " << binaryValues.size() << endl;
+#endif
+
+    // Encode the binary commands to download the waveform
+    string bytes1 = string(":trac1:data 1,0,") + ScpiBlockPrefix(binaryValues.size());
+
+    buffer1.resize(bytes1.size() + binaryValues.size());
+    memcpy(&buffer1[0], bytes1.c_str(), bytes1.size());
+    memcpy(&buffer1[bytes1.size()], &binaryValues[0], binaryValues.size());
+}
+
+void generator::signal_IMP::GenerateWaveformCommands(long long &sampleCount, vector<ViByte> &buffer1)
+{
+    //GranularityCheck(sampleCount);
+
+    // Generate a impulse wave, ensure granularity (192) and minimum samples (384)
+
+    const double long Ts = stod(sigData.find("-sT")->second); //100ms in s
+    const long long Fs = (long long)(1/Ts+1);
+
+    long N = 2;
+    int Chain=0;
+    long long Fr = (long long)N*Fs;
+
+
+    if (Fr < 125000000)  { Fr = 125000000;  Chain = 1; cout << "1" << endl; }
+    if (Fr > 7500000000) { Fr = 7400000000; Chain = 0; cout << "1.1" << endl;}
+
+    long int remainder = Fr % Fs;
+    long int quotient = Fr / Fs;
+    if (remainder != 0) { N=quotient+Chain; Fr=N*Fs;  cout << "2" << endl;}
+
+    sampleCount = (long long)N*192;
+    //Chain = 0;
+    if (quotient > sampleCount) { N=quotient+Chain; Fr=N*Fs;  cout << "3" << endl;}
+
+    sampleCount = (long long)N*192;
+    if (sampleCount > 2E+9) {
+        cout << "4" << endl;
+        long X = (N / 64 + Chain);
+        X = (X / 48 + Chain);
+        N = X * 48 *64;
+        Fr=N*Fs;
+        sampleCount = (long long)N;
+    }
+
+#ifdef debug
+    cout << "GenerateWaveformCommands() -> sampleCount: " << sampleCount << endl;
+#endif
+
+    long long sampleCountCheck = 0;
+    vector<ViChar> binaryValues;
+    binaryValues.clear();
+    long double Tr=(long double)1/Fr;
+
+#ifdef debug
+    cout << "GenerateWaveformCommands() -> Fs: " << Fs << endl;
+    cout << "GenerateWaveformCommands() -> Fr: " << Fr << endl;
+    cout << "GenerateWaveformCommands() -> Tr: " << Tr << endl;
+    cout << "GenerateWaveformCommands() -> N: " << N << endl;
+#endif
+
+    *gF = to_string(Fr);
+    do
+    {
+        for (long double i=0; i<N; ++i)
+        {
+            short sign;
+            if (i < N/2) sign = 1; else sign = -1;
+            const short dac = (short)(2047 * sign);
+            //cout << dac << endl;
+            short value = (short)(dac << 4);
+            binaryValues.push_back((ViChar)value);
+            binaryValues.push_back((ViChar)(value >> 8));
+        }
+        sampleCountCheck += N;
+    } while (sampleCount != sampleCountCheck);
+
+#ifdef debug
+    cout << "GenerateWaveformCommands() -> binaryValues.size(): " << binaryValues.size() << endl;
+#endif
+
     // Encode the binary commands to download the waveform
     string bytes1 = string(":trac1:data 1,0,") + ScpiBlockPrefix(binaryValues.size());
 
