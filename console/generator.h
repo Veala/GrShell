@@ -32,6 +32,8 @@ protected:
 private:
     ViSession session, vi;
     int openSession();
+    void err_handler(ViSession vi, ViStatus err);
+
     struct state {
         short isOpenSes = 1;
         short isChangeGenP = 1;
