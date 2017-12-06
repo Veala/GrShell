@@ -11,6 +11,10 @@ generator::generator()
         sig = new signal_SIN(gFreq);
     if (signal::sigData["-sType"] == "IMP")
         sig = new signal_IMP(gFreq);
+
+//    if (signal::sigData["-sType"] == "")
+//        sig = new signal_IMP(gFreq);
+
     sig->isChangeSigP = &stateGen.isChangeSigP;
     //sig->gF = &gFreq;
     commands.push_back("getAllP");
@@ -141,7 +145,17 @@ void generator::start()
 
         // Init sampleCount;
         vector<ViByte> buffer1;
-        sig->GenerateWaveformCommands(sampleCount, buffer1);
+        try {
+            sig->GenerateWaveformCommands(sampleCount, buffer1);
+        }
+        catch (string *error) {
+            cout << error->c_str();
+            delete error;
+        }
+        catch (...) {
+            cout << "critical error\n";
+        }
+
 #ifdef debug
         cout << "start() -> gFreq.c_str(): " << gFreq.c_str() << endl;
 #endif
@@ -351,6 +365,14 @@ void generator::signal::GranularityCheck(int &sampleCount)
     }
 }
 
+int generator::signal::FrRangeCheck(long double& Fr)
+{
+    if (Fr < Fr_min) Fr = Fr_min;
+    if (Fr > Fr_max) Fr = Fr_max;
+    if ((Fr >= Fr_min) && (Fr < Fr_max/2)) return 1;
+    if ((Fr >= Fr_max/2) && (Fr <= Fr_max)) return 0;
+}
+
 void generator::signal_SIN::GenerateWaveformCommands(long long &sampleCount, vector<ViByte> &buffer1)
 {
     //GranularityCheck(sampleCount);
@@ -530,25 +552,30 @@ void generator::signal_IMP::GenerateWaveformCommands(long long &sampleCount, vec
     const double long Ts = stod(sigData.find("-sT")->second); //100ms in s
     const double long Fs = (double long)1/Ts;
 
-    long long N = 12;
+    long long N = 384;
     double long Fr = (double long)N*Fs;
 
-    int Chain;
-    if (Fr < 125000000)  { Fr = 125000000;  Chain = 1; }
-    if (Fr > 12000000000) { Fr = 12000000000; Chain = 0; }
-    if ((Fr >= 125000000) && (Fr < 6500000000)) Chain = 1;
-    if ((Fr >= 6500000000) && (Fr <= 12000000000)) Chain = 0;
+    int Chain = FrRangeCheck(Fr);
 
     N = (Fr / Fs + Chain);
-    sampleCount = N*192;
-    ////////////////////////////////////////
-    if (sampleCount > 2E+6) {
-        long long X = N/64 + Chain;
-        X = X/48 + Chain;
-        N = X * 48 *64;
+    if (N<4) {
+        throw new string("Error: Fr/Fs < 4\n");
+    } else if (N>=4 && N<384) {
+        sampleCount = N*192;
+        Fr=N*Fs;
+    } else if (N>=384) {
+        long long remainder = N % 192;
+        long long quotient  = N / 192;
+        if (remainder != 0)
+            N = (quotient + Chain) * 192;
         sampleCount = N;
+        Fr=N*Fs;
     }
-    Fr=N*Fs;
+    ////////////////////////////////////////
+    if (sampleCount > 2E+9) throw new string("Error: Sample Count > 2GSa\n");
+    if (sampleCount > 1E+5) {
+
+    }
 
 #ifdef debug
     cout << "GenerateWaveformCommands() -> Fs: " << Fs << endl;

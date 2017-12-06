@@ -2,6 +2,8 @@
 #include <generator.h>
 #include <analyzer.h>
 
+#define debug
+
 using namespace std;
 
 ifstream projFile;
@@ -65,9 +67,17 @@ int main(int argc, char* argv[])
     analyzer ana;
 
     std::map<string,string>::iterator it = proData.find("-pm");
-    if (it!=proData.end())
-        if (it->second == "auto")
+    if (it!=proData.end()) {
+#ifdef debug
+        cout << "start() -> it!=proData.end()" << endl;
+#endif
+        if (it->second == "auto") {
+#ifdef debug
+        cout << "it->second == auto" << endl;
+#endif
             start(ana, gen);
+        }
+    }
 
     string command;
     cout << "=>";

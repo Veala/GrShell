@@ -51,12 +51,17 @@ private:
         void execShell();
         virtual void GenerateWaveformCommands(long long& sampleCount, vector<ViByte>& buffer1) = 0;
         short *isChangeSigP;
+        long long count = 1;
     protected:
         string *gF;
         string ScpiBlockPrefix(size_t blocklen);
         void GranularityCheck(int& sampleCount);
     private:
         list<string> commands;
+        int FrRangeCheck(double long& Fr);
+        const double long Fr_min = 125E+6;
+        const double long Fr_max = 12E+9;
+        long long offset;
     };
 
     class signal_SIN : public signal
