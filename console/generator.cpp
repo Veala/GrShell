@@ -141,19 +141,21 @@ void generator::start()
 #endif
 
         //Common multiple of 48 and 64;
-        long long sampleCount=0;
+        //long long sampleCount=0;
 
         // Init sampleCount;
         vector<ViByte> buffer1;
         try {
-            sig->GenerateWaveformCommands(sampleCount, buffer1);
+            sig->Calculate();
         }
         catch (string *error) {
             cout << error->c_str();
             delete error;
+            return;
         }
         catch (...) {
             cout << "critical error\n";
+            return;
         }
 
 #ifdef debug
@@ -174,14 +176,19 @@ void generator::start()
         } while(strcmp(buffer,"1\n") != 0);
 
 #ifdef debug
-        cout << "start() -> sampleCount: " << (long int)sampleCount << endl;
+        cout << "start() -> sampleCount: " << (long int)sig->sampleCount << endl;
 #endif
-        error = viPrintf(vi, ":TRACe1:DEFine 1,%ld\n", (long int)sampleCount);
+        error = viPrintf(vi, ":TRACe1:DEFine 1,%ld\n", (long int)sig->sampleCount);
         do {
             Sleep(50);
             error = viPrintf(vi, "*OPC?\n");
             error = viScanf(vi, "%t", buffer);
         } while(strcmp(buffer,"1\n") != 0);
+
+
+        ////////////////////////////////////////////////////
+        for (long long i=0; i<sig->count; ++i)
+            sig->GenerateWaveformCommands(buffer1);
 
         ViUInt32 writtenCount;
         ViUInt32 NToWrite = (ViUInt32)buffer1.size();
@@ -373,7 +380,7 @@ int generator::signal::FrRangeCheck(long double& Fr)
     if ((Fr >= Fr_max/2) && (Fr <= Fr_max)) return 0;
 }
 
-void generator::signal_SIN::GenerateWaveformCommands(long long &sampleCount, vector<ViByte> &buffer1)
+void generator::signal_SIN::GenerateWaveformCommands(vector<ViByte> &buffer1)
 {
     //GranularityCheck(sampleCount);
 
@@ -428,7 +435,7 @@ void generator::signal_SIN::GenerateWaveformCommands(long long &sampleCount, vec
     memcpy(&buffer1[bytes1.size()], &binaryValues[0], binaryValues.size());
 }
 
-void generator::signal_LFM::GenerateWaveformCommands(long long &sampleCount, vector<ViByte> &buffer1)
+void generator::signal_LFM::GenerateWaveformCommands(vector<ViByte> &buffer1)
 {
     //GranularityCheck(sampleCount);
 
@@ -543,52 +550,13 @@ void generator::signal_LFM::GenerateWaveformCommands(long long &sampleCount, vec
     memcpy(&buffer1[bytes1.size()], &binaryValues[0], binaryValues.size());
 }
 
-void generator::signal_IMP::GenerateWaveformCommands(long long &sampleCount, vector<ViByte> &buffer1)
+void generator::signal_IMP::GenerateWaveformCommands(vector<ViByte> &buffer1)
 {
-    //GranularityCheck(sampleCount);
-
     // Generate a impulse wave, ensure granularity (192) and minimum samples (384)
-
-    const double long Ts = stod(sigData.find("-sT")->second); //100ms in s
-    const double long Fs = (double long)1/Ts;
-
-    long long N = 384;
-    double long Fr = (double long)N*Fs;
-
-    int Chain = FrRangeCheck(Fr);
-
-    N = (Fr / Fs + Chain);
-    if (N<4) {
-        throw new string("Error: Fr/Fs < 4\n");
-    } else if (N>=4 && N<384) {
-        sampleCount = N*192;
-        Fr=N*Fs;
-    } else if (N>=384) {
-        long long remainder = N % 192;
-        long long quotient  = N / 192;
-        if (remainder != 0)
-            N = (quotient + Chain) * 192;
-        sampleCount = N;
-        Fr=N*Fs;
-    }
-    ////////////////////////////////////////
-    if (sampleCount > 2E+9) throw new string("Error: Sample Count > 2GSa\n");
-    if (sampleCount > 1E+5) {
-
-    }
-
-#ifdef debug
-    cout << "GenerateWaveformCommands() -> Fs: " << Fs << endl;
-    cout << "GenerateWaveformCommands() -> Fr: " << Fr << endl;
-    cout << "GenerateWaveformCommands() -> N: " << N << endl;
-    cout << "GenerateWaveformCommands() -> sampleCount: " << sampleCount << endl;
-#endif
 
     long long sampleCountCheck = 0;
     vector<ViChar> binaryValues;
     binaryValues.clear();
-
-    *gF = to_string((long long)Fr);
     do
     {
         for (long long i=0; i<N; ++i)
@@ -614,4 +582,45 @@ void generator::signal_IMP::GenerateWaveformCommands(long long &sampleCount, vec
     buffer1.resize(bytes1.size() + binaryValues.size());
     memcpy(&buffer1[0], bytes1.c_str(), bytes1.size());
     memcpy(&buffer1[bytes1.size()], &binaryValues[0], binaryValues.size());
+}
+
+void generator::signal_IMP::Calculate()
+{
+    Ts = stod(sigData.find("-sT")->second); //100ms in s
+    Fs = (double long)1/Ts;
+    N = 384;
+    Fr = (double long)N*Fs;
+
+    int Chain = FrRangeCheck(Fr);
+    N = (Fr / Fs + Chain);
+
+    if (N<4) {
+        throw new string("Error: Fr/Fs < 4\n");
+    } else if (N>=4 && N<384) {
+        sampleCount = N*192;
+        Fr=N*Fs;
+    } else if (N>=384) {
+        long long remainder = N % 192;
+        long long quotient  = N / 192;
+        if (remainder != 0)
+            N = (quotient + Chain) * 192;
+        sampleCount = N;
+        Fr=N*Fs;
+    }
+    ////////////////////////////////////////
+    if (sampleCount > maxSampleCount) throw new string("Error: Sample Count > 2GSa\n");
+    long long remainder = sampleCount % maxPortion;
+    long long quotient  = sampleCount / maxPortion;
+    if (remainder != 0) count = quotient + 1;
+    else count = quotient;
+
+#ifdef debug
+    cout << "GenerateWaveformCommands() -> Fs: " << Fs << endl;
+    cout << "GenerateWaveformCommands() -> Fr: " << Fr << endl;
+    cout << "GenerateWaveformCommands() -> N: " << N << endl;
+    cout << "GenerateWaveformCommands() -> sampleCount: " << sampleCount << endl;
+#endif
+
+    *gF = to_string((long long)Fr);
+    offset=0;
 }
