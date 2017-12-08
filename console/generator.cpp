@@ -559,8 +559,9 @@ void generator::signal_IMP::GenerateWaveformCommands(vector<ViByte> &buffer1)
     binaryValues.clear();
     do
     {
-        for (long long i=0; i<N; ++i)
+        for (; i<N; ++i)
         {
+            if (i == maxPortion) break;
             short sign;
             if (i < N/2) sign = 1; else sign = -1;
             const short dac = (short)(2047 * sign);
@@ -568,6 +569,10 @@ void generator::signal_IMP::GenerateWaveformCommands(vector<ViByte> &buffer1)
             short value = (short)(dac << 4);
             binaryValues.push_back((ViChar)value);
             binaryValues.push_back((ViChar)(value >> 8));
+        }
+        if (i==maxPortion) {
+            sampleCountCheck += maxPortion;
+            break;
         }
         sampleCountCheck += N;
     } while (sampleCount != sampleCountCheck);
@@ -623,4 +628,5 @@ void generator::signal_IMP::Calculate()
 
     *gF = to_string((long long)Fr);
     offset=0;
+    i=0;
 }

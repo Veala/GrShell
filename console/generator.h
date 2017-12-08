@@ -63,10 +63,10 @@ private:
         int FrRangeCheck(double long& Fr);
         const double long Fr_min = 125E+6;
         const double long Fr_max = 12E+9;
+        double long Fr, Fs;
         const long long maxSampleCount = 2E+9;
         const long long maxPortion = 1E+5;
-        long long N, offset;
-        double long Fr, Fs;
+        long long N, i, n, offset;
     };
 
     class signal_SIN : public signal
