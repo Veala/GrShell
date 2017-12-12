@@ -50,7 +50,7 @@ private:
         static map<string,string> sigData;
         void execShell();
         virtual void GenerateWaveformCommands(vector<ViByte>& buffer1) = 0;
-        virtual void Calculate() = 0;
+        virtual void Calculate();
         short *isChangeSigP;
         long long count = 1;
         long long sampleCount;
@@ -58,15 +58,15 @@ private:
         string *gF;
         string ScpiBlockPrefix(size_t blocklen);
         void GranularityCheck(int& sampleCount);
-    private:
-        list<string> commands;
         int FrRangeCheck(double long& Fr);
         const double long Fr_min = 125E+6;
         const double long Fr_max = 12E+9;
         double long Fr, Fs;
         const long long maxSampleCount = 2E+9;
-        const long long maxPortion = 1E+5;
+        const long long maxPortion = 98304;
         long long N, i, n, offset;
+    private:
+        list<string> commands;
     };
 
     class signal_SIN : public signal
@@ -75,6 +75,9 @@ private:
         signal_SIN(string &gFreq) : signal(gFreq) {}
         ~signal_SIN() { };
         void GenerateWaveformCommands(vector<ViByte> &buffer1);
+        void Calculate();
+    private:
+        double long Tr;
     };
 
     class signal_LFM : public signal
@@ -83,6 +86,7 @@ private:
         signal_LFM(string &gFreq) : signal(gFreq) {}
         ~signal_LFM() { };
         void GenerateWaveformCommands(vector<ViByte> &buffer1);
+        void Calculate();
     };
 
     class signal_IMP : public signal

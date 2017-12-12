@@ -2,7 +2,7 @@
 #include <generator.h>
 #include <analyzer.h>
 
-#define debug
+//#define debug
 
 using namespace std;
 
@@ -68,13 +68,7 @@ int main(int argc, char* argv[])
 
     std::map<string,string>::iterator it = proData.find("-pm");
     if (it!=proData.end()) {
-#ifdef debug
-        cout << "start() -> it!=proData.end()" << endl;
-#endif
         if (it->second == "auto") {
-#ifdef debug
-        cout << "it->second == auto" << endl;
-#endif
             start(ana, gen);
         }
     }
