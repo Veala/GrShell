@@ -1,7 +1,7 @@
 #ifndef GENERATOR_H
 #define GENERATOR_H
 
-#define debug
+//#define debug
 
 #include <iostream>
 #include <sstream>
@@ -50,9 +50,10 @@ private:
         static map<string,string> sigData;
         void execShell();
         virtual void GenerateWaveformCommands(vector<ViByte>& buffer1) = 0;
-        virtual void Calculate();
+        virtual void Calculate(long long minN = 4, long long firstN = 384);
         short *isChangeSigP;
         long long count = 1;
+        long long n;
         long long sampleCount;
     protected:
         string *gF;
@@ -64,7 +65,7 @@ private:
         double long Fr, Fs;
         const long long maxSampleCount = 2E+9;
         const long long maxPortion = 98304;
-        long long N, i, n, offset;
+        long long N, i, offset;
     private:
         list<string> commands;
     };
@@ -75,7 +76,7 @@ private:
         signal_SIN(string &gFreq) : signal(gFreq) {}
         ~signal_SIN() { };
         void GenerateWaveformCommands(vector<ViByte> &buffer1);
-        void Calculate();
+        void Calculate(long long minN = 4, long long firstN = 384);
     private:
         double long Tr;
     };
@@ -86,7 +87,7 @@ private:
         signal_LFM(string &gFreq) : signal(gFreq) {}
         ~signal_LFM() { };
         void GenerateWaveformCommands(vector<ViByte> &buffer1);
-        void Calculate();
+        void Calculate(long long minN = 4, long long firstN = 384);
     };
 
     class signal_IMP : public signal
@@ -95,7 +96,7 @@ private:
         signal_IMP(string &gFreq) : signal(gFreq) {}
         ~signal_IMP() { };
         void GenerateWaveformCommands(vector<ViByte> &buffer1);
-        void Calculate();
+        void Calculate(long long minN = 4, long long firstN = 384);
     private:
         double long Ts;
     };

@@ -187,7 +187,7 @@ void generator::start()
 
 
         ////////////////////////////////////////////////////
-        for (long long i=0; i<sig->count; ++i) {
+        for (sig->n=1; sig->n<=sig->count; sig->n++) {
             buffer1.clear();
             sig->GenerateWaveformCommands(buffer1);
             ViUInt32 writtenCount;
@@ -350,20 +350,20 @@ void generator::signal::execShell()
     }
 }
 
-void generator::signal::Calculate()
+void generator::signal::Calculate(long long minN, long long firstN)
 {
-    N = 384;
+    N = firstN;
     Fr = (double long)N*Fs;
 
     int Chain = FrRangeCheck(Fr);
     N = (Fr / Fs + Chain);
 
-    if (N<4) {
+    if (N<minN) {
         throw new string("Error: Fr/Fs < 4\n");
-    } else if (N>=4 && N<384) {
+    } else if (N>=minN && N<firstN) {
         sampleCount = N*192;
         Fr=N*Fs;
-    } else if (N>=384) {
+    } else if (N>=firstN) {
         long long remainder = N % 192;
         long long quotient  = N / 192;
         if (remainder != 0)
@@ -388,7 +388,6 @@ void generator::signal::Calculate()
     *gF = to_string((long long)Fr);
     offset=0;
     i=0;
-    n=0;
 }
 
 string generator::signal::ScpiBlockPrefix(size_t blocklen)
@@ -427,7 +426,6 @@ void generator::signal_SIN::GenerateWaveformCommands(vector<ViByte> &buffer1)
 {
     // Generate a sine wave, ensure granularity (192) and minimum samples (384)
 
-    n++;
     long long sampleCountCheck = 0;
     vector<ViChar> binaryValues;
     binaryValues.clear();
@@ -457,10 +455,10 @@ void generator::signal_SIN::GenerateWaveformCommands(vector<ViByte> &buffer1)
     memcpy(&buffer1[bytes1.size()], &binaryValues[0], binaryValues.size());
 }
 
-void generator::signal_SIN::Calculate()
+void generator::signal_SIN::Calculate(long long minN, long long firstN)
 {
     Fs = stold(sigData.find("-sF")->second); //in Hz;
-    signal::Calculate();
+    signal::Calculate(minN,firstN);
     Tr = 1/Fr;
 }
 
@@ -579,7 +577,7 @@ void generator::signal_LFM::GenerateWaveformCommands(vector<ViByte> &buffer1)
     memcpy(&buffer1[bytes1.size()], &binaryValues[0], binaryValues.size());
 }
 
-void generator::signal_LFM::Calculate()
+void generator::signal_LFM::Calculate(long long minN, long long firstN)
 {
 
 }
@@ -588,13 +586,12 @@ void generator::signal_IMP::GenerateWaveformCommands(vector<ViByte> &buffer1)
 {
     // Generate a impulse wave, ensure granularity (192) and minimum samples (384)
 
-    n++;
     long long sampleCountCheck = 0;
     vector<ViChar> binaryValues;
     binaryValues.clear();
     do
     {
-        for (i; i<N; ++i)
+        for (; i<N; ++i)
         {
             if (i == n*maxPortion) break;
             short sign;
@@ -621,9 +618,9 @@ void generator::signal_IMP::GenerateWaveformCommands(vector<ViByte> &buffer1)
     memcpy(&buffer1[bytes1.size()], &binaryValues[0], binaryValues.size());
 }
 
-void generator::signal_IMP::Calculate()
+void generator::signal_IMP::Calculate(long long minN, long long firstN)
 {
     Ts = stold(sigData.find("-sT")->second); //in s
-    Fs = (double long)1/Ts;
-    signal::Calculate();
+    Fs = 1/Ts;
+    signal::Calculate(minN, firstN);
 }
