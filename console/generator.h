@@ -1,7 +1,7 @@
 #ifndef GENERATOR_H
 #define GENERATOR_H
 
-//#define debug
+#define debug
 
 #include <iostream>
 #include <sstream>
@@ -65,7 +65,7 @@ private:
         double long Fr, Fs;
         const long long maxSampleCount = 2E+9;
         const long long maxPortion = 98304;
-        long long N, i, offset;
+        long long N, i, offset, counter;
     private:
         list<string> commands;
     };
@@ -88,6 +88,10 @@ private:
         ~signal_LFM() { };
         void GenerateWaveformCommands(vector<ViByte> &buffer1);
         void Calculate(long long minN = 4, long long firstN = 384);
+    private:
+        double long Ts, Tr;
+        double long F_min, F_max;
+        double long F_0, b;
     };
 
     class signal_IMP : public signal

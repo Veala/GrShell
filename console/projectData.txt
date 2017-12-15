@@ -10,14 +10,21 @@ Generator:
 //-gFreq 6.0E+09 //LFM
 
 Signal:
-//Types: SIN, LFM, NOISE, RECTIMP
--sType SIN
-//-sType LFM
+//Types: SIN, LFM, IMP, NOISE
+//-sType SIN
+-sType LFM
+//-sType IMP
+
 //Hz
--sF 5000000
-//-sFmin 10E+6
-//-sFmax 800E+6
-//-sT 5E-6
+//-sF 1
+-sFmin 10E+6
+-sFmax 800E+6
+
+//sec
+//LFM
+-sT 5E-6
+//IMP
+//-sT 1E-3
 
 Analyzer:
 -aSPAN 800MHz
