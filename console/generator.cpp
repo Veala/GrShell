@@ -355,7 +355,7 @@ void generator::signal::Calculate(long long minN, long long firstN)
     N = firstN;
     Fr = (double long)N*Fs;
 
-    int Chain = FrRangeCheck(Fr);
+    int Chain = rangeCheck(Fr);
     N = (Fr / Fs + Chain);
 
     if (N<minN) {
@@ -392,210 +392,21 @@ void generator::signal::Calculate(long long minN, long long firstN)
     i=0;
 }
 
-string generator::signal::ScpiBlockPrefix(size_t blocklen)
+void generator::signal::GenerateWaveformCommands(vector<ViByte> &buffer1)
 {
-    ostringstream blockLenSStr;
-    blockLenSStr << blocklen;
-    ostringstream resultSStr;
-    resultSStr << "#" << blockLenSStr.str().size() << blockLenSStr.str();
-    return resultSStr.str();
-}
-
-void generator::signal::GranularityCheck(int &sampleCount)
-{
-    if (sampleCount < 384)
-        sampleCount = 384;
-    else
-    {
-        int remainder = sampleCount % 192;
-        int quotient = sampleCount/ 192;
-
-        if (remainder != 0)
-            sampleCount = (quotient + 1) * 192;
-        //cout << sampleCount;
-    }
-}
-
-int generator::signal::FrRangeCheck(long double& Fr)
-{
-    if (Fr < Fr_min) Fr = Fr_min;
-    if (Fr > Fr_max) Fr = Fr_max;
-    if ((Fr >= Fr_min) && (Fr < Fr_max/2)) return 1;
-    if ((Fr >= Fr_max/2) && (Fr <= Fr_max)) return 0;
-}
-
-void generator::signal_SIN::GenerateWaveformCommands(vector<ViByte> &buffer1)
-{
-    // Generate a sine wave, ensure granularity (192) and minimum samples (384)
+    // Generate a sine, LFM, impulse waves, ensure granularity (192) and minimum samples (384)
 
     long long sampleCountCheck = 0;
     vector<ViChar> binaryValues;
     binaryValues.clear();
     short way = 0;
+    long long barrier = n*maxPortion;
     do
     {
         for (; i<N; ++i, ++counter)
         {
-            if (counter == n*maxPortion || counter == sampleCount) { way = 1; break; }
-            const short dac = (short)(2047 * sin(2 * M_PI * Fs * i * Tr));
-            short value = (short)(dac << 4);
-            binaryValues.push_back((ViChar)value);
-            binaryValues.push_back((ViChar)(value >> 8));
-        }
-        if (way==1)
-            break;
-        i=0;
-        sampleCountCheck += N;
-    } while (sampleCount != sampleCountCheck);
-
-    // Encode the binary commands to download the waveform
-    string bytes1 = string(":trac1:data 1,") + to_string(offset) + string(",") + ScpiBlockPrefix(binaryValues.size());
-    offset+=binaryValues.size()/2;
-
-    buffer1.resize(bytes1.size() + binaryValues.size());
-    memcpy(&buffer1[0], bytes1.c_str(), bytes1.size());
-    memcpy(&buffer1[bytes1.size()], &binaryValues[0], binaryValues.size());
-}
-
-void generator::signal_SIN::Calculate(long long minN, long long firstN)
-{
-    Fs = stold(sigData.find("-sF")->second); //in Hz;
-    signal::Calculate(minN,firstN);
-    Tr = 1/Fr;
-}
-
-/*
-void generator::signal_LFM::GenerateWaveformCommands(vector<ViByte> &buffer1)
-{
-    //GranularityCheck(sampleCount);
-
-    // Generate a LFM wave, ensure granularity (192) and minimum samples (384)
-
-    const long long F_min = stod(sigData.find("-sFmin")->second); //Hz
-    const long long F_max = stod(sigData.find("-sFmax")->second); //Hz
-    const double long Ts = stod(sigData.find("-sT")->second); //s
-    const long long Fs = (long long)(1/Ts + 1); //Hz
-    const long double F_0 = (F_max + F_min)/2; //Hz
-    const long double b = (long double)(F_max - F_min)/Ts; //Hz^2
-
-#ifdef debug
-    cout << "GenerateWaveformCommands() -> F_min: " << F_min << endl;
-    cout << "GenerateWaveformCommands() -> F_max: " << F_max << endl;
-    cout << "GenerateWaveformCommands() -> Ts: " << Ts << endl;
-    cout << "GenerateWaveformCommands() -> Fs: " << Fs << endl;
-    cout << "GenerateWaveformCommands() -> F_0: " << F_0 << endl;
-    cout << "GenerateWaveformCommands() -> b: " << b << endl;
-#endif
-
-    long N = 3;
-    int Chain=0;
-    long long Fr = (long long)F_max*N;
-
-#ifdef debug
-    cout << "GenerateWaveformCommands() -> Fr: " << Fr << endl;
-#endif
-
-    if (Fr < 125000000)  { Fr = 125000000;  Chain = 1; }
-    if (Fr > 7500000000) { Fr = 7400000000; Chain = 0; }
-    long int remainder = Fr % Fs;
-    long int quotient = Fr / Fs;
-
-#ifdef debug
-    cout << "GenerateWaveformCommands() -> Fr: " << Fr << endl;
-    cout << "GenerateWaveformCommands() -> remainder: " << remainder << endl;
-    cout << "GenerateWaveformCommands() -> quotient: " << quotient << endl;
-#endif
-
-    if (remainder != 0) { N=quotient+Chain; Fr=N*Fs;  }
-
-#ifdef debug
-    cout << "GenerateWaveformCommands() -> Fr: " << Fr << endl;
-#endif
-
-    sampleCount = (long long)N*192;
-    if (quotient > sampleCount) { N=quotient+Chain; Fr=N*Fs;  }
-
-#ifdef debug
-    cout << "GenerateWaveformCommands() -> Fr: " << Fr << endl;
-#endif
-
-    sampleCount = (long long)N*192;
-
-    if (sampleCount > 2E+9) {
-
-#ifdef debug
-        cout << "GenerateWaveformCommands(): Sample count > 2Gs" << endl;
-#endif
-
-        long X = N / 64;
-        X = X / 48;
-        N = X * 48 *64;
-        Fr=N*Fs;
-        sampleCount = (long long)N;
-    }
-
-#ifdef debug
-    cout << "GenerateWaveformCommands() -> Fr: " << Fr << endl;
-#endif
-
-    long long sampleCountCheck = 0;
-    vector<ViChar> binaryValues;
-    binaryValues.clear();
-    long double Tr=(long double)1/Fr;
-    *gF = to_string(Fr);
-
-#ifdef debug
-    cout << "GenerateWaveformCommands() -> Tr: " << Tr << endl;
-    cout << "GenerateWaveformCommands() -> N: " << N << endl;
-#endif
-
-    //int counter = 0;
-    do {
-        //for (long double i = -Ts/2; i<Ts/2 ; i+=Tr)
-        for (long double i = 0; i<N ; ++i)
-        {
-            //const short dac = (short)(2047 * cos(2 * M_PI * (F_0 * i + b/2 * i * i)));
-            long double t = -(long double)Ts/2 + i*Tr;
-            const short dac = (short)(2047 * cos(2 * M_PI * (F_0 * t + b/2 * t * t)));
-            //cout << dac << endl;
-            //counter++;
-            short value = (short)(dac << 4);
-            binaryValues.push_back((ViChar)value);
-            binaryValues.push_back((ViChar)(value >> 8));
-        }
-        //cout << counter << endl;
-        //counter=0;
-        sampleCountCheck += N;
-    } while (sampleCount != sampleCountCheck);
-
-#ifdef debug
-    cout << "GenerateWaveformCommands() -> binaryValues.size(): " << binaryValues.size() << endl;
-#endif
-
-    // Encode the binary commands to download the waveform
-    string bytes1 = string(":trac1:data 1,0,") + ScpiBlockPrefix(binaryValues.size());
-
-    buffer1.resize(bytes1.size() + binaryValues.size());
-    memcpy(&buffer1[0], bytes1.c_str(), bytes1.size());
-    memcpy(&buffer1[bytes1.size()], &binaryValues[0], binaryValues.size());
-}
-*/
-
-void generator::signal_LFM::GenerateWaveformCommands(vector<ViByte> &buffer1)
-{
-    // Generate a LFM wave, ensure granularity (192) and minimum samples (384)
-
-    long long sampleCountCheck = 0;
-    vector<ViChar> binaryValues;
-    binaryValues.clear();
-    short way = 0;
-
-    do {
-        for (; i<N ; ++i, ++counter)
-        {
-            if (counter == n*maxPortion || counter == sampleCount) { way = 1; break; }
-            long double t = -Ts/2 + (double long)i*Tr;
-            const short dac = (short)(2047 * cos(2 * M_PI * (F_0 * t + b/2 * t * t)));
+            if (counter == barrier || counter == sampleCount) { way = 1; break; }
+            const short dac = dacValue();
             short value = (short)(dac << 4);
             binaryValues.push_back((ViChar)value);
             binaryValues.push_back((ViChar)(value >> 8));
@@ -620,6 +431,35 @@ void generator::signal_LFM::GenerateWaveformCommands(vector<ViByte> &buffer1)
     buffer1.resize(bytes1.size() + binaryValues.size());
     memcpy(&buffer1[0], bytes1.c_str(), bytes1.size());
     memcpy(&buffer1[bytes1.size()], &binaryValues[0], binaryValues.size());
+}
+
+string generator::signal::ScpiBlockPrefix(size_t blocklen)
+{
+    ostringstream blockLenSStr;
+    blockLenSStr << blocklen;
+    ostringstream resultSStr;
+    resultSStr << "#" << blockLenSStr.str().size() << blockLenSStr.str();
+    return resultSStr.str();
+}
+
+int generator::signal::rangeCheck(long double& Fr)
+{
+    if (Fr < Fr_min) Fr = Fr_min;
+    if (Fr > Fr_max) Fr = Fr_max;
+    if ((Fr >= Fr_min) && (Fr < Fr_max/2)) return 1;
+    if ((Fr >= Fr_max/2) && (Fr <= Fr_max)) return 0;
+}
+
+void generator::signal_SIN::Calculate(long long minN, long long firstN)
+{
+    Fs = stold(sigData.find("-sF")->second); //in Hz;
+    signal::Calculate(minN,firstN);
+    Tr = 1/Fr;
+}
+
+short generator::signal_SIN::dacValue()
+{
+    return (short)(2047 * sin(2 * M_PI * Fs * i * Tr));
 }
 
 void generator::signal_LFM::Calculate(long long minN, long long firstN)
@@ -664,41 +504,10 @@ void generator::signal_LFM::Calculate(long long minN, long long firstN)
 #endif
 }
 
-void generator::signal_IMP::GenerateWaveformCommands(vector<ViByte> &buffer1)
+short generator::signal_LFM::dacValue()
 {
-    // Generate a impulse wave, ensure granularity (192) and minimum samples (384)
-
-    long long sampleCountCheck = 0;
-    vector<ViChar> binaryValues;
-    binaryValues.clear();
-    short way = 0;
-    do
-    {
-        for (; i<N; ++i, ++counter)
-        {
-            if (counter == n*maxPortion || counter == sampleCount) { way = 1; break; }
-            short sign;
-            if (i < N/2) sign = 1; else sign = -1;
-            const short dac = (short)(2047 * sign);
-            //cout << dac << endl;
-            short value = (short)(dac << 4);
-            binaryValues.push_back((ViChar)value);
-            binaryValues.push_back((ViChar)(value >> 8));
-        }
-        if (way==1)
-            break;
-        i=0;
-        sampleCountCheck += N;
-    } while (sampleCount != sampleCountCheck);
-
-    // Encode the binary commands to download the waveform
-
-    string bytes1 = string(":trac1:data 1,") + to_string(offset) + string(",") + ScpiBlockPrefix(binaryValues.size());
-    offset+=binaryValues.size()/2;
-
-    buffer1.resize(bytes1.size() + binaryValues.size());
-    memcpy(&buffer1[0], bytes1.c_str(), bytes1.size());
-    memcpy(&buffer1[bytes1.size()], &binaryValues[0], binaryValues.size());
+    long double t = -Ts/2 + (double long)i*Tr;
+    return (short)(2047 * cos(2 * M_PI * (F_0 * t + b/2 * t * t)));
 }
 
 void generator::signal_IMP::Calculate(long long minN, long long firstN)
@@ -706,4 +515,11 @@ void generator::signal_IMP::Calculate(long long minN, long long firstN)
     Ts = stold(sigData.find("-sT")->second); //in s
     Fs = 1/Ts;
     signal::Calculate(minN, firstN);
+}
+
+short generator::signal_IMP::dacValue()
+{
+    short sign;
+    if (i < N/2) sign = 1; else sign = -1;
+    return sign;
 }

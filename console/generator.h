@@ -49,17 +49,18 @@ private:
         virtual ~signal() { };
         static map<string,string> sigData;
         void execShell();
-        virtual void GenerateWaveformCommands(vector<ViByte>& buffer1) = 0;
         virtual void Calculate(long long minN = 4, long long firstN = 384);
+        void GenerateWaveformCommands(vector<ViByte>& buffer1);
         short *isChangeSigP;
         long long count = 1;
         long long n;
         long long sampleCount;
     protected:
-        string *gF;
         string ScpiBlockPrefix(size_t blocklen);
-        void GranularityCheck(int& sampleCount);
-        int FrRangeCheck(double long& Fr);
+        int rangeCheck(double long& Fr);
+        virtual short dacValue() = 0;
+
+        string *gF;
         const double long Fr_min = 125E+6;
         const double long Fr_max = 12E+9;
         double long Fr, Fs;
@@ -75,8 +76,9 @@ private:
     public:
         signal_SIN(string &gFreq) : signal(gFreq) {}
         ~signal_SIN() { };
-        void GenerateWaveformCommands(vector<ViByte> &buffer1);
         void Calculate(long long minN = 4, long long firstN = 384);
+    protected:
+        short dac();
     private:
         double long Tr;
     };
@@ -86,8 +88,9 @@ private:
     public:
         signal_LFM(string &gFreq) : signal(gFreq) {}
         ~signal_LFM() { };
-        void GenerateWaveformCommands(vector<ViByte> &buffer1);
         void Calculate(long long minN = 4, long long firstN = 384);
+    protected:
+        short dac();
     private:
         double long Ts, Tr;
         double long F_min, F_max;
@@ -99,8 +102,9 @@ private:
     public:
         signal_IMP(string &gFreq) : signal(gFreq) {}
         ~signal_IMP() { };
-        void GenerateWaveformCommands(vector<ViByte> &buffer1);
         void Calculate(long long minN = 4, long long firstN = 384);
+    protected:
+        short dac();
     private:
         double long Ts;
     };
