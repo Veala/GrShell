@@ -49,7 +49,7 @@ private:
         virtual ~signal() { };
         static map<string,string> sigData;
         void execShell();
-        virtual void Calculate(long long minN = 4, long long firstN = 384);
+        virtual void Calculate();
         void GenerateWaveformCommands(vector<ViByte>& buffer1);
         short *isChangeSigP;
         long long count = 1;
@@ -66,7 +66,7 @@ private:
         double long Fr, Fs;
         const long long maxSampleCount = 2E+9;
         const long long maxPortion = 98304;
-        long long N, i, offset, counter;
+        long long N, i, offset, counter, minN ;
     private:
         list<string> commands;
     };
@@ -76,7 +76,7 @@ private:
     public:
         signal_SIN(string &gFreq) : signal(gFreq) {}
         ~signal_SIN() { };
-        void Calculate(long long minN = 4, long long firstN = 384);
+        void Calculate();
     protected:
         short dac();
     private:
@@ -88,7 +88,7 @@ private:
     public:
         signal_LFM(string &gFreq) : signal(gFreq) {}
         ~signal_LFM() { };
-        void Calculate(long long minN = 4, long long firstN = 384);
+        void Calculate();
     protected:
         short dac();
     private:
@@ -102,7 +102,7 @@ private:
     public:
         signal_IMP(string &gFreq) : signal(gFreq) {}
         ~signal_IMP() { };
-        void Calculate(long long minN = 4, long long firstN = 384);
+        void Calculate();
     protected:
         short dac();
     private:

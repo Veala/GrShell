@@ -19,7 +19,7 @@ const double long Fr_max = 12E+9;
 double long Fr, Fs;
 const long long maxSampleCount = 2E+9;
 const long long maxPortion = 98304;
-long long N, i, counter;
+long long N, i, counter, minN;
 string *error;
 ofstream file;
 
@@ -33,9 +33,9 @@ int rangeCheck(long double& Fr)
 
 namespace LFMsignal {
 
-void Calculate(long long minN = 4, long long firstN = 384)
+void Calculate()
 {
-    N = firstN;
+    //N = firstN;
     Fr = (double long)N*Fs;
 
     int Chain = rangeCheck(Fr);
@@ -43,11 +43,11 @@ void Calculate(long long minN = 4, long long firstN = 384)
 
     if (N<minN) {
         throw new string("Error: Fr/Fs < 4\n");
-    } else if (N>=minN && N<firstN) {
+    } else if (N<384) {
         //тут подумать, над делением на 64 и 48
         sampleCount = N*192;
         Fr=N*Fs;
-    } else if (N>=firstN) {
+    } else {
         long long remainder = N % 192;
         long long quotient  = N / 192;
         if (remainder != 0)
@@ -68,7 +68,7 @@ void Calculate(long long minN = 4, long long firstN = 384)
 
 }
 
-void Calculate(long long minN = 4, long long firstN = 384)
+void Calculate()
 {
     F_min = 10E+6; //Hz
     F_max = 800E+6; //Hz
@@ -101,15 +101,15 @@ void Calculate(long long minN = 4, long long firstN = 384)
 #endif
 
     dt = (t_21 - t_22)/10;
-    firstN = Ts/dt;
+    N = Ts/dt;
 
 #ifdef debug
     cout << "dt2: " << dt << endl;
-    cout << "firstN: " << firstN << endl;
+    cout << "N...: " << N << endl;
     throw new string("throw End");
 #endif
 
-    LFMsignal::Calculate(minN, firstN);
+    LFMsignal::Calculate();
     Tr = 1/Fr;
 }
 

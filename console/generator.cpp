@@ -350,9 +350,8 @@ void generator::signal::execShell()
     }
 }
 
-void generator::signal::Calculate(long long minN, long long firstN)
+void generator::signal::Calculate()
 {
-    N = firstN;
     Fr = (double long)N*Fs;
 
     int Chain = rangeCheck(Fr);
@@ -360,11 +359,10 @@ void generator::signal::Calculate(long long minN, long long firstN)
 
     if (N<minN) {
         throw new string("Error: Fr/Fs < 4\n");
-    } else if (N>=minN && N<firstN) {
-        //тут подумать, над делением на 64 и 48
+    } else if (N<384) {
         sampleCount = N*192;
         Fr=N*Fs;
-    } else if (N>=firstN) {
+    } else {
         long long remainder = N % 192;
         long long quotient  = N / 192;
         if (remainder != 0)
@@ -450,10 +448,11 @@ int generator::signal::rangeCheck(long double& Fr)
     if ((Fr >= Fr_max/2) && (Fr <= Fr_max)) return 0;
 }
 
-void generator::signal_SIN::Calculate(long long minN, long long firstN)
+void generator::signal_SIN::Calculate()
 {
     Fs = stold(sigData.find("-sF")->second); //in Hz;
-    signal::Calculate(minN,firstN);
+    minN=4; N=384;
+    signal::Calculate();
     Tr = 1/Fr;
 }
 
@@ -462,7 +461,7 @@ short generator::signal_SIN::dacValue()
     return (short)(2047 * sin(2 * M_PI * Fs * i * Tr));
 }
 
-void generator::signal_LFM::Calculate(long long minN, long long firstN)
+void generator::signal_LFM::Calculate()
 {
     F_min = stod(sigData.find("-sFmin")->second); //Hz
     F_max = stod(sigData.find("-sFmax")->second); //Hz
@@ -484,14 +483,14 @@ void generator::signal_LFM::Calculate(long long minN, long long firstN)
     double long dt = (t_21 - t_22)/4;
     minN = Ts/dt;
     dt = (t_21 - t_22)/10;
-    firstN = Ts/dt;
+    N = Ts/dt;
 
 #ifdef debug
-    cout << "firstN: " << firstN << endl;
+    cout << "N...: " << N << endl;
     cout << "Fs: " << Fs << endl;
 #endif
 
-    signal::Calculate(minN, firstN);
+    signal::Calculate();
     Tr = 1/Fr;
 
 #ifdef debug
@@ -510,11 +509,12 @@ short generator::signal_LFM::dacValue()
     return (short)(2047 * cos(2 * M_PI * (F_0 * t + b/2 * t * t)));
 }
 
-void generator::signal_IMP::Calculate(long long minN, long long firstN)
+void generator::signal_IMP::Calculate()
 {
     Ts = stold(sigData.find("-sT")->second); //in s
     Fs = 1/Ts;
-    signal::Calculate(minN, firstN);
+    minN=4; N=384;
+    signal::Calculate();
 }
 
 short generator::signal_IMP::dacValue()
