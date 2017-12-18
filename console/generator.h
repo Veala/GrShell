@@ -1,7 +1,7 @@
 #ifndef GENERATOR_H
 #define GENERATOR_H
 
-#define debug
+//#define debug
 
 #include <iostream>
 #include <sstream>
@@ -78,7 +78,7 @@ private:
         ~signal_SIN() { };
         void Calculate();
     protected:
-        short dac();
+        short dacValue();
     private:
         double long Tr;
     };
@@ -90,7 +90,7 @@ private:
         ~signal_LFM() { };
         void Calculate();
     protected:
-        short dac();
+        short dacValue();
     private:
         double long Ts, Tr;
         double long F_min, F_max;
@@ -104,7 +104,7 @@ private:
         ~signal_IMP() { };
         void Calculate();
     protected:
-        short dac();
+        short dacValue();
     private:
         double long Ts;
     };

@@ -266,7 +266,9 @@ int generator::openSession()
         return 1;
     }
     error = viSetAttribute(vi, VI_ATTR_TMO_VALUE, (ViAttrState)0x1f40);
-    cout << "open: error" << error << endl;
+#ifdef debug
+    cout << endl << "open: error " << error << endl;
+#endif
     if (error < VI_SUCCESS) {
         err_handler(vi, error);
         viClose(session);
@@ -512,7 +514,7 @@ short generator::signal_LFM::dacValue()
 void generator::signal_IMP::Calculate()
 {
     Ts = stold(sigData.find("-sT")->second); //in s
-    Fs = 1/Ts;
+    Fs = (long double)1/Ts;
     minN=4; N=384;
     signal::Calculate();
 }
@@ -520,6 +522,6 @@ void generator::signal_IMP::Calculate()
 short generator::signal_IMP::dacValue()
 {
     short sign;
-    if (i < N/2) sign = 1; else sign = -1;
+    if (i < N/2) sign = 2047; else sign = -2047;
     return sign;
 }
