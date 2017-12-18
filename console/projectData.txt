@@ -16,15 +16,15 @@ Signal:
 //-sType IMP
 
 //Hz
-//-sF 1
+//-sF 5E+9
 -sFmin 10E+6
 -sFmax 800E+6
 
 //sec
 //LFM
--sT 5E-6
+-sT 5E-8
 //IMP
-//-sT 1E-3
+//-sT 1E-1
 
 Analyzer:
 -aSPAN 800MHz
